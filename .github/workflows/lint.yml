@@ -1,0 +1,11 @@
+name: Lint (Reusable)
+
+on:
+  workflow_call:
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: echo "Define project-specific linting in the caller workflow."

@@ -1,0 +1,21 @@
+version: "3.8"
+
+services:
+  app:
+    image: ghcr.io/DVM-Software-Inc/REPLACE_IMAGE_NAME:latest
+    container_name: REPLACE_CONTAINER_NAME
+    env_file:
+      - .env
+    networks:
+      - dvm_traefik
+    restart: always
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.REPLACE_ROUTER_NAME.rule=Host(`${APP_DOMAIN}`)"
+      - "traefik.http.routers.REPLACE_ROUTER_NAME.entrypoints=websecure"
+      - "traefik.http.routers.REPLACE_ROUTER_NAME.tls.certresolver=letsencrypt"
+      - "traefik.http.services.REPLACE_ROUTER_NAME.loadbalancer.server.port=REPLACE_INTERNAL_PORT"
+
+networks:
+  dvm_traefik:
+    external: true

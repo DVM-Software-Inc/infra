@@ -1,0 +1,34 @@
+name: Reusable Docker Build & Push
+
+on:
+  workflow_call:
+    inputs:
+      environment:
+        required: true
+        type: string
+      image_name:
+        required: true
+        type: string
+    secrets:
+      GHCR_USERNAME:
+        required: true
+      GHCR_TOKEN:
+        required: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Login to GHCR
+        run: echo "${{ secrets.GHCR_TOKEN }}" | docker login ghcr.io -u "${{ secrets.GHCR_USERNAME }}" --password-stdin
+
+      - name: Build image
+        run: |
+          docker build -t ghcr.io/DVM-Software-Inc/${{ inputs.image_name }}:${{ inputs.environment }}-latest .
+
+      - name: Push image
+        run: |
+          docker push ghcr.io/DVM-Software-Inc/${{ inputs.image_name }}:${{ inputs.environment }}-latest

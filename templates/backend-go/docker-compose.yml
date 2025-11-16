@@ -1,0 +1,21 @@
+version: "3.8"
+
+services:
+  api:
+    image: ghcr.io/DVM-Software-Inc/backend-go-template:latest
+    container_name: backend-go-template
+    env_file:
+      - .env
+    networks:
+      - dvm_traefik
+    restart: always
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.backend-go-template.rule=Host(`${APP_DOMAIN}`)"
+      - "traefik.http.routers.backend-go-template.entrypoints=websecure"
+      - "traefik.http.routers.backend-go-template.tls.certresolver=letsencrypt"
+      - "traefik.http.services.backend-go-template.loadbalancer.server.port=8080"
+
+networks:
+  dvm_traefik:
+    external: true

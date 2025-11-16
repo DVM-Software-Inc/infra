@@ -1,0 +1,21 @@
+version: "3.8"
+
+services:
+  api:
+    image: ghcr.io/DVM-Software-Inc/backend-fastapi-template:latest
+    container_name: backend-fastapi-template
+    env_file:
+      - .env
+    networks:
+      - dvm_traefik
+    restart: always
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.backend-fastapi-template.rule=Host(`${APP_DOMAIN}`)"
+      - "traefik.http.routers.backend-fastapi-template.entrypoints=websecure"
+      - "traefik.http.routers.backend-fastapi-template.tls.certresolver=letsencrypt"
+      - "traefik.http.services.backend-fastapi-template.loadbalancer.server.port=8000"
+
+networks:
+  dvm_traefik:
+    external: true
