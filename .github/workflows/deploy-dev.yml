@@ -1,0 +1,57 @@
+name: Deploy to Dev
+
+on:
+  workflow_call:
+    inputs:
+      image_name:
+        required: true
+        type: string
+      compose_file:
+        required: true
+        type: string
+    secrets:
+      VPS_HOST:
+        required: true
+      VPS_USER:
+        required: true
+      VPS_SSH_KEY:
+        required: true
+      GHCR_USERNAME:
+        required: true
+      GHCR_TOKEN:
+        required: true
+
+jobs:
+  deploy-dev:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Copy docker-compose to runner
+        id: copy
+        run: |
+          mkdir artifact
+          cp ${{ inputs.compose_file }} artifact/docker-compose.yml
+
+      - name: Connect and deploy over SSH
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          script: |
+            set -e
+            mkdir -p /opt/apps/${{ inputs.image_name }}
+            cd /opt/apps/${{ inputs.image_name }}
+
+            # write docker-compose.yml
+            cat > docker-compose.yml << 'EOF'
+$(cat artifact/docker-compose.yml)
+EOF
+
+            # login and deploy
+            docker login ghcr.io -u "${{ secrets.GHCR_USERNAME }}" -p "${{ secrets.GHCR_TOKEN }}"
+            docker compose pull
+            docker compose up -d
