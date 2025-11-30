@@ -39,4 +39,9 @@ jobs:
 
       - name: Deploy via SSH
         run: |
-          ssh -o StrictHostKeyChecking=no -i key.pem ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }} "cd /opt/apps/${{ inputs.image_name }} && docker compose pull && docker compose up -d"
+          ssh -o StrictHostKeyChecking=no -i key.pem ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }} "
+            echo ${{ secrets.GHCR_TOKEN }} | docker login ghcr.io -u ${{ secrets.GHCR_USERNAME }} --password-stdin
+            cd /opt/apps/${{ inputs.image_name }}
+            docker compose pull
+            docker compose up -d
+          "
