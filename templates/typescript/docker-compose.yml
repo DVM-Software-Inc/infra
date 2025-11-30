@@ -1,0 +1,19 @@
+services:
+  api:
+    image: ghcr.io/dvm-software-inc/${PROJECT_NAME}:latest
+    container_name: ${PROJECT_NAME}
+    env_file:
+      - .env
+    networks:
+      - dokploy-network
+    restart: always
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.${PROJECT_NAME}.rule=Host(`${APP_DOMAIN}`)"
+      - "traefik.http.routers.${PROJECT_NAME}.entrypoints=websecure"
+      - "traefik.http.routers.${PROJECT_NAME}.tls.certresolver=letsencrypt"
+      - "traefik.http.services.${PROJECT_NAME}.loadbalancer.server.port=${APP_PORT}"
+
+networks:
+  dokploy-network:
+    external: true

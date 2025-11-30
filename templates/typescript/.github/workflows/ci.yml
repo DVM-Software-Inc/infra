@@ -1,0 +1,22 @@
+name: TypeScript Backend CI/CD
+
+on:
+  push:
+    branches: ["dev", "main"]
+
+jobs:
+  build:
+    uses: DVM-Software-Inc/infra/.github/workflows/build.yml@main
+    with:
+      environment: ${{ github.ref_name == 'main' && 'prod' || 'dev' }}
+      image_name: ${{ github.event.repository.name }}
+    secrets: inherit
+
+  deploy:
+    needs: build
+    uses: DVM-Software-Inc/infra/.github/workflows/deploy.yml@main
+    with:
+      environment: ${{ github.ref_name == 'main' && 'prod' || 'dev' }}
+      compose_file: docker-compose.yml
+      image_name: ${{ github.event.repository.name }}
+    secrets: inherit
