@@ -11,9 +11,9 @@ on:
         type: string
     secrets:
       GHCR_USERNAME:
-        required: true
+        required: false
       GHCR_TOKEN:
-        required: true
+        required: false
 
 jobs:
   build:

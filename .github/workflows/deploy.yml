@@ -14,15 +14,15 @@ on:
         required: true
     secrets:
       GHCR_USERNAME:
-        required: true
+        required: false
       GHCR_TOKEN:
-        required: true
+        required: false
       VPS_HOST:
-        required: true
+        required: false
       VPS_USER:
-        required: true
+        required: false
       VPS_SSH_KEY:
-        required: true
+        required: false
 
 jobs:
   deploy:
