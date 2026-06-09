@@ -1,3 +1,5 @@
+name: REPLACE_PROJECT_NAME # lowercase; must be unique per app+env on the VPS
+
 services:
   api:
     image: ghcr.io/dvm-software-inc/${PROJECT_NAME}:latest

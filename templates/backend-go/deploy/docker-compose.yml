@@ -1,3 +1,5 @@
+name: backend-go-template
+
 version: "3.8"
 
 services:
