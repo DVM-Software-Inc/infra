@@ -20,15 +20,14 @@
 
 ## VPS Setup
 
-Before first deploy, create the app folder on VPS:
+Before first deploy, create the per-env app folders and stage `.env` on the VPS
+(CI ships only the compose file — see `docs/workflows.md` caller preconditions):
 ```bash
-ssh contabo "mkdir -p /opt/apps/YOUR_PROJECT_NAME"
+ssh contabo "mkdir -p /opt/YOUR_PROJECT_NAME/dev /opt/YOUR_PROJECT_NAME/prod"
+scp .env contabo:/opt/YOUR_PROJECT_NAME/dev/
 ```
 
-Copy docker-compose.yml and .env:
-```bash
-scp docker-compose.yml .env contabo:/opt/apps/YOUR_PROJECT_NAME/
-```
+The compose file lives at `deploy/docker-compose.yml` in the repo and is deployed by CI.
 
 ## Endpoints
 
