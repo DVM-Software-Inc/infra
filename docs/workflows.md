@@ -37,6 +37,8 @@ jobs:
       VPS_SSH_KEY: ${{ secrets.VPS_SSH_KEY }}
 ```
 
+**Caller setup preconditions (per repo):** (1) create the `prod` GitHub environment **with required reviewers** — `deploy.yml`'s `environment:` line only gates approval if the environment is protected; GitHub auto-creates it unprotected on first use. (2) Pre-provision `deploy_path` on the VPS with its `.env` file before the first deploy — the workflow ships only the compose file. (3) Compose files must live under `deploy/` in the repo (enforced by a validation step; required by the scp `strip_components` contract so the file lands flat in `deploy_path` next to `.env`).
+
 Environment model: ONE VPS. `dev` branch → dev (subdomain `<slug>-dev.dvmsoftware.com`, dir `/opt/<slug>/dev`, tag `:dev`); `main` branch → prod (subdomain `<slug>.dvmsoftware.com`, dir `/opt/<slug>/prod`, tag `:prod`, GitHub environment `prod` requires reviewer approval).
 
 Compose files MUST follow the live VPS conventions in `~/code/vps_deploy/DEPLOY_UTILITY.md` §4 (network `web-public`, `traefik.docker.network=web-public`, restart `unless-stopped`, cert resolver `letsencrypt`) — NOT the older templates in `docker-templates/`.
