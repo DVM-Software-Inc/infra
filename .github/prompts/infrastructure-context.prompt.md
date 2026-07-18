@@ -1,73 +1,16 @@
 # DVM-Software-Inc Infrastructure Context
 
-Use this prompt at the start of new sessions to provide context about our infrastructure.
+> **Superseded (2026-07-18):** the canonical LLM context now lives in
+> [`prompts/`](../../prompts/README.md) — load `prompts/base.md` plus the file matching
+> the app type. The DokPloy / `dokploy-network` / `/opt/apps/PROJECT` (flat) /
+> `enoughledger.com` setup formerly described here no longer exists.
 
-## Quick Reference
+Quick facts (kept for grep-ability; details in `prompts/base.md`):
 
-### VPS
-- IP: 194.238.24.254
-- SSH: `ssh contabo`
-- Platform: DokPloy + Traefik v3.5
-- Apps folder: `/opt/apps/`
-
-### Docker Network
-- **Use `dokploy-network`** for all services (Traefik is on this network)
-- Do NOT use `proxy` network
-
-### CI/CD
-- Reusable workflows in `DVM-Software-Inc/infra/.github/workflows/`
-- `build.yml` → builds & pushes to ghcr.io/dvm-software-inc
-- `deploy.yml` → SSH to VPS, docker compose pull & up
-- Secrets: `GHCR_USERNAME`, `GHCR_TOKEN`, `VPS_HOST`, `VPS_USER`, `VPS_SSH_KEY`
-- Environments: `dev` (dev branch), `prod` (main branch)
-
-### DNS
-- Domain: `enoughledger.com` (Namecheap)
-- Pattern: `app-name.enoughledger.com → 194.238.24.254`
-
-### Project Templates
-- Located at: `~/code/infra/templates/{go,python,typescript}/`
-- Include: Dockerfile, docker-compose.yml, .github/workflows/ci.yml, .env.example
-
-### Standard Ports
-- Go: 8080
-- Python (FastAPI/Uvicorn): 8000
-- TypeScript (Node): 3000
-
-## New Project Checklist
-
-1. Copy template from `infra/templates/LANG/`
-2. Create repo under DVM-Software-Inc
-3. Add `dev` and `prod` environments with secrets
-4. Create VPS folder: `ssh contabo "mkdir -p /opt/apps/PROJECT"`
-5. SCP docker-compose.yml and .env to VPS
-6. Add DNS A record
-7. Push to main → auto deploys
-
-## Traefik Labels (required)
-
-```yaml
-labels:
-  - "traefik.enable=true"
-  - "traefik.http.routers.NAME.rule=Host(`domain.enoughledger.com`)"
-  - "traefik.http.routers.NAME.entrypoints=websecure"
-  - "traefik.http.routers.NAME.tls.certresolver=letsencrypt"
-  - "traefik.http.services.NAME.loadbalancer.server.port=PORT"
-```
-
-## Debugging
-
-```bash
-# SSH to VPS
-ssh contabo
-
-# Check container
-docker ps | grep NAME
-docker logs NAME -f
-
-# Test internal connectivity
-docker exec dokploy-traefik wget -qO- http://CONTAINER:PORT/health
-
-# Check Traefik routing
-docker logs dokploy-traefik 2>&1 | grep NAME
-```
+- VPS: Contabo `194.238.24.254`, `ssh contabo`; Traefik v3 + Let's Encrypt on the
+  `web-public` overlay network; shared Postgres at alias `postgres:5432`.
+- Apps deploy to `/opt/apps/<slug>/<env>/` via the reusable workflows
+  (`build.yml` + `deploy.yml`) in this repo.
+- `main` → dev auto-deploy; prod via manual `workflow_dispatch` (protected environment).
+- Each product owns its root domain; `*.dvmsoftware.com` is for internal utilities.
+- Secrets: Vaultwarden (`vault.dvmsoftware.com`) → GitHub environment secrets. Never in repos.

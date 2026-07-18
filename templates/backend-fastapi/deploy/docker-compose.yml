@@ -1,23 +1,27 @@
-name: backend-fastapi-template
-
-version: "3.8"
+# Canonical app compose — see infra prompts/base.md. .env (next to this file on the VPS)
+# sets PROJECT_NAME + APP_DOMAIN; deploy.yml injects DEPLOY_ENVIRONMENT + IMAGE_TAG.
+name: ${PROJECT_NAME}-${DEPLOY_ENVIRONMENT}
 
 services:
   api:
-    image: ghcr.io/DVM-Software-Inc/backend-fastapi-template:latest
-    container_name: backend-fastapi-template
+    image: ghcr.io/dvm-software-inc/${PROJECT_NAME}:${IMAGE_TAG}
+    container_name: ${PROJECT_NAME}-${DEPLOY_ENVIRONMENT}
+    restart: unless-stopped
     env_file:
       - .env
     networks:
-      - dvm_traefik
-    restart: always
+      - web-public
     labels:
-      - "traefik.enable=true"
-      - "traefik.http.routers.backend-fastapi-template.rule=Host(`${APP_DOMAIN}`)"
-      - "traefik.http.routers.backend-fastapi-template.entrypoints=websecure"
-      - "traefik.http.routers.backend-fastapi-template.tls.certresolver=letsencrypt"
-      - "traefik.http.services.backend-fastapi-template.loadbalancer.server.port=8000"
+      - traefik.enable=true
+      - traefik.docker.network=web-public
+      - traefik.http.services.${PROJECT_NAME}-${DEPLOY_ENVIRONMENT}.loadbalancer.server.port=8000
+      - traefik.http.routers.${PROJECT_NAME}-${DEPLOY_ENVIRONMENT}.rule=Host(`${APP_DOMAIN}`)
+      - traefik.http.routers.${PROJECT_NAME}-${DEPLOY_ENVIRONMENT}.entrypoints=websecure
+      - traefik.http.routers.${PROJECT_NAME}-${DEPLOY_ENVIRONMENT}.tls.certresolver=letsencrypt
+      - traefik.http.routers.${PROJECT_NAME}-${DEPLOY_ENVIRONMENT}-http.rule=Host(`${APP_DOMAIN}`)
+      - traefik.http.routers.${PROJECT_NAME}-${DEPLOY_ENVIRONMENT}-http.entrypoints=web
+      - traefik.http.routers.${PROJECT_NAME}-${DEPLOY_ENVIRONMENT}-http.middlewares=redirect-to-https@file
 
 networks:
-  dvm_traefik:
+  web-public:
     external: true

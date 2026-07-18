@@ -1,29 +1,46 @@
-name: Go Backend CI/CD
+# Canonical caller for the infra reusable workflows — see infra prompts/base.md.
+# main → dev auto-deploy; prod only via manual workflow_dispatch (protected environment).
+name: CI/CD
 
 on:
   push:
-    branches: [dev, main]
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: Environment to deploy
+        type: choice
+        options: [dev, prod]
+        default: dev
+        required: true
 
 jobs:
+  # add lint/test jobs here and make `build` depend on them
+
   build:
     uses: DVM-Software-Inc/infra/.github/workflows/build.yml@main
+    permissions:
+      contents: read
+      packages: write
     with:
-      image_name: backend-go-template
-      environment: ${{ github.ref_name == 'main' && 'prod' || 'dev' }}
-    secrets:
-      GHCR_USERNAME: ${{ secrets.GHCR_USERNAME }}
-      GHCR_TOKEN: ${{ secrets.GHCR_TOKEN }}
+      image_name: ${{ github.event.repository.name }}
+      environment: ${{ github.event_name == 'workflow_dispatch' && inputs.environment || 'dev' }}
 
   deploy:
     needs: build
     uses: DVM-Software-Inc/infra/.github/workflows/deploy.yml@main
+    permissions:
+      contents: read
+      packages: read
     with:
-      environment: ${{ github.ref_name == 'main' && 'prod' || 'dev' }}
+      environment: ${{ github.event_name == 'workflow_dispatch' && inputs.environment || 'dev' }}
       compose_file: deploy/docker-compose.yml
-      deploy_path: /opt/backend-go-template/${{ github.ref_name == 'main' && 'prod' || 'dev' }}
+      deploy_path: /opt/apps/${{ github.event.repository.name }}/${{ github.event_name == 'workflow_dispatch' && inputs.environment || 'dev' }}
+      image_tag: ${{ needs.build.outputs.image_tag }}
+      require_env_file: true
+      # migrate_command: docker compose -f "$COMPOSE_FILE" run --rm api alembic upgrade head
     secrets:
-      GHCR_USERNAME: ${{ secrets.GHCR_USERNAME }}
-      GHCR_TOKEN: ${{ secrets.GHCR_TOKEN }}
       VPS_HOST: ${{ secrets.VPS_HOST }}
       VPS_USER: ${{ secrets.VPS_USER }}
       VPS_SSH_KEY: ${{ secrets.VPS_SSH_KEY }}
+      VPS_FINGERPRINT: ${{ secrets.VPS_FINGERPRINT }}

@@ -13,36 +13,146 @@ on:
       deploy_path:
         type: string
         required: true
-        description: Absolute directory on the VPS, e.g. /opt/audition-parse/dev
+        description: Absolute directory on the VPS, e.g. /opt/apps/<slug>/dev
+      image_tag:
+        type: string
+        required: false
+        default: ""
+        description: >-
+          Immutable image tag to write as TAG and IMAGE_TAG in .env before deploy.
+          Leave empty for compatibility with a pre-provisioned .env.
+      require_env_file:
+        type: boolean
+        required: false
+        default: false
+        description: Fail before touching the stack when the environment has no ENV_FILE secret.
+      pre_deploy_command:
+        type: string
+        required: false
+        default: ""
+        description: Optional trusted command run after pull and before migrate_command.
+      migrate_command:
+        type: string
+        required: false
+        default: ""
+        description: >-
+          Optional shell command run in deploy_path after `pull`, before `up -d`.
+          $COMPOSE_FILE holds the compose file basename, e.g.
+          docker compose -f "$COMPOSE_FILE" run --rm api alembic upgrade head
+      post_deploy_command:
+        type: string
+        required: false
+        default: ""
+        description: Optional trusted command run after the stack reports ready.
+      smoke_urls:
+        type: string
+        required: false
+        default: ""
+        description: Optional newline-delimited HTTP(S) URLs checked after deployment.
+      wait_timeout:
+        type: number
+        required: false
+        default: 120
+        description: Seconds docker compose up --wait may take before failing.
     secrets:
       GHCR_USERNAME:
-        required: true
+        required: false
+        description: Deprecated compatibility input; defaults to github.actor.
       GHCR_TOKEN:
-        required: true
+        required: false
+        description: Deprecated compatibility input; defaults to github.token.
       VPS_HOST:
         required: true
       VPS_USER:
         required: true
       VPS_SSH_KEY:
         required: true
+      VPS_FINGERPRINT:
+        required: false
+        description: Optional SHA256 SSH host-key fingerprint.
+      ENV_FILE:
+        required: false
+        description: >-
+          Optional full dotenv content written to <deploy_path>/.env (mode 600)
+          before pull. When omitted, the .env already on the VPS is left untouched.
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
     environment: ${{ inputs.environment }}
+    permissions:
+      contents: read
+      packages: read
     concurrency:
       group: deploy-${{ inputs.environment }}
       cancel-in-progress: false
     steps:
-      - name: Validate compose_file path
+      - name: Validate deployment inputs
+        env:
+          COMPOSE_FILE_INPUT: ${{ inputs.compose_file }}
+          DEPLOY_PATH_INPUT: ${{ inputs.deploy_path }}
+          DEPLOY_ENVIRONMENT: ${{ inputs.environment }}
+          IMAGE_TAG_INPUT: ${{ inputs.image_tag }}
         run: |
-          case "${{ inputs.compose_file }}" in
+          set -euo pipefail
+          case "$COMPOSE_FILE_INPUT" in
             deploy/*.yml|deploy/*.yaml) ;;
             *) echo "compose_file must be deploy/<file>.yml (scp strip_components contract)"; exit 1 ;;
           esac
+          case "$DEPLOY_PATH_INPUT" in
+            /opt/*) ;;
+            *) echo "deploy_path must be an absolute path below /opt"; exit 1 ;;
+          esac
+          case "$DEPLOY_ENVIRONMENT" in
+            *[!A-Za-z0-9_.-]*|'') echo "environment contains unsupported characters"; exit 1 ;;
+          esac
+          if [ -n "$IMAGE_TAG_INPUT" ]; then
+            case "$IMAGE_TAG_INPUT" in
+              *[!A-Za-z0-9_.-]*) echo "image_tag contains unsupported characters"; exit 1 ;;
+            esac
+          fi
 
       - name: Checkout
         uses: actions/checkout@v4
+
+      - name: Prepare protected remote inputs
+        env:
+          RAW_ENV_FILE: ${{ secrets.ENV_FILE }}
+          REQUIRE_ENV_FILE: ${{ inputs.require_env_file }}
+          RAW_PRE_DEPLOY_COMMAND: ${{ inputs.pre_deploy_command }}
+          RAW_MIGRATE_COMMAND: ${{ inputs.migrate_command }}
+          RAW_POST_DEPLOY_COMMAND: ${{ inputs.post_deploy_command }}
+          RAW_SMOKE_URLS: ${{ inputs.smoke_urls }}
+        run: |
+          set -euo pipefail
+
+          encode() {
+            printf '%s' "$1" | base64 | tr -d '\n'
+          }
+
+          if [ "$REQUIRE_ENV_FILE" = "true" ] && [ -z "$RAW_ENV_FILE" ]; then
+            echo "::error::ENV_FILE is required for this deployment environment"
+            exit 1
+          fi
+
+          if [ -n "$RAW_ENV_FILE" ]; then
+            encoded="$(encode "$RAW_ENV_FILE")"
+            echo "::add-mask::$encoded"
+            echo "ENV_FILE_B64=$encoded" >> "$GITHUB_ENV"
+          fi
+
+          for pair in \
+            "PRE_DEPLOY_COMMAND_B64=$RAW_PRE_DEPLOY_COMMAND" \
+            "MIGRATE_COMMAND_B64=$RAW_MIGRATE_COMMAND" \
+            "POST_DEPLOY_COMMAND_B64=$RAW_POST_DEPLOY_COMMAND" \
+            "SMOKE_URLS_B64=$RAW_SMOKE_URLS"
+          do
+            name="${pair%%=*}"
+            value="${pair#*=}"
+            if [ -n "$value" ]; then
+              echo "$name=$(encode "$value")" >> "$GITHUB_ENV"
+            fi
+          done
 
       - name: Copy compose file to VPS
         uses: appleboy/scp-action@917f8b81dfc1ccd331fef9e2d61bdc6c8be94634 # v0.1.7
@@ -56,16 +166,100 @@ jobs:
 
       - name: Pull image and restart stack
         uses: appleboy/ssh-action@7eaf76671a0d7eec5d98ee897acda4f968735a17 # v1.2.0
+        env:
+          ENV_FILE_B64: ${{ env.ENV_FILE_B64 }}
+          PRE_DEPLOY_COMMAND_B64: ${{ env.PRE_DEPLOY_COMMAND_B64 }}
+          MIGRATE_COMMAND_B64: ${{ env.MIGRATE_COMMAND_B64 }}
+          POST_DEPLOY_COMMAND_B64: ${{ env.POST_DEPLOY_COMMAND_B64 }}
+          SMOKE_URLS_B64: ${{ env.SMOKE_URLS_B64 }}
+          IMAGE_TAG: ${{ inputs.image_tag }}
+          DEPLOY_ENVIRONMENT: ${{ inputs.environment }}
+          WAIT_TIMEOUT: ${{ inputs.wait_timeout }}
+          GHCR_USERNAME: ${{ secrets.GHCR_USERNAME || github.actor }}
+          GHCR_TOKEN: ${{ secrets.GHCR_TOKEN || github.token }}
         with:
           host: ${{ secrets.VPS_HOST }}
           username: ${{ secrets.VPS_USER }}
           key: ${{ secrets.VPS_SSH_KEY }}
+          fingerprint: ${{ secrets.VPS_FINGERPRINT }}
+          envs: ENV_FILE_B64,PRE_DEPLOY_COMMAND_B64,MIGRATE_COMMAND_B64,POST_DEPLOY_COMMAND_B64,SMOKE_URLS_B64,IMAGE_TAG,DEPLOY_ENVIRONMENT,WAIT_TIMEOUT,GHCR_USERNAME,GHCR_TOKEN
           script: |
             set -euo pipefail
             cd "${{ inputs.deploy_path }}"
             COMPOSE_FILE="$(basename "${{ inputs.compose_file }}")"
-            echo "${{ secrets.GHCR_TOKEN }}" | docker login ghcr.io -u "${{ secrets.GHCR_USERNAME }}" --password-stdin
+            export COMPOSE_FILE
+
+            decode() {
+              printf '%s' "$1" | base64 --decode
+            }
+
+            run_encoded_command() {
+              label="$1"
+              encoded="$2"
+              if [ -n "$encoded" ]; then
+                echo "Running $label"
+                command="$(decode "$encoded")"
+                bash -euo pipefail -c "$command"
+              fi
+            }
+
+            if [ -n "${ENV_FILE_B64:-}" ] || [ -n "${IMAGE_TAG:-}" ]; then
+              umask 077
+              env_tmp=".env.tmp.$$"
+              if [ -n "${ENV_FILE_B64:-}" ]; then
+                decode "$ENV_FILE_B64" > "$env_tmp"
+              elif [ -f .env ]; then
+                cp .env "$env_tmp"
+              else
+                : > "$env_tmp"
+              fi
+
+              if [ -n "${IMAGE_TAG:-}" ]; then
+                sed -i '/^TAG=/d; /^IMAGE_TAG=/d; /^DEPLOY_ENVIRONMENT=/d' "$env_tmp"
+                printf '\nTAG=%s\nIMAGE_TAG=%s\nDEPLOY_ENVIRONMENT=%s\n' \
+                  "$IMAGE_TAG" "$IMAGE_TAG" "$DEPLOY_ENVIRONMENT" >> "$env_tmp"
+              fi
+              chmod 600 "$env_tmp"
+              mv -f "$env_tmp" .env
+              echo "Updated protected deployment environment"
+            fi
+
+            if [ ! -f .env ]; then
+              echo "Missing $PWD/.env" >&2
+              exit 1
+            fi
+
+            docker compose -f "$COMPOSE_FILE" config --quiet
+            printf '%s' "$GHCR_TOKEN" | docker login ghcr.io -u "$GHCR_USERNAME" --password-stdin
             trap 'docker logout ghcr.io' EXIT
             docker compose -f "$COMPOSE_FILE" pull
-            docker compose -f "$COMPOSE_FILE" up -d --remove-orphans
+
+            run_encoded_command "pre-deploy command" "${PRE_DEPLOY_COMMAND_B64:-}"
+            run_encoded_command "migration/release command" "${MIGRATE_COMMAND_B64:-}"
+
+            docker compose -f "$COMPOSE_FILE" up -d --remove-orphans --wait --wait-timeout "$WAIT_TIMEOUT"
+            run_encoded_command "post-deploy command" "${POST_DEPLOY_COMMAND_B64:-}"
+
+            if [ -n "${SMOKE_URLS_B64:-}" ]; then
+              smoke_urls="$(decode "$SMOKE_URLS_B64")"
+              while IFS= read -r url; do
+                [ -n "$url" ] || continue
+                echo "Smoke checking $url"
+                passed=false
+                for attempt in $(seq 1 12); do
+                  if curl --fail --silent --show-error --max-time 10 "$url" > /dev/null; then
+                    passed=true
+                    break
+                  fi
+                  sleep 5
+                done
+                if [ "$passed" != "true" ]; then
+                  echo "Smoke check failed: $url" >&2
+                  exit 1
+                fi
+              done <<EOF
+            $smoke_urls
+            EOF
+            fi
+
             docker compose -f "$COMPOSE_FILE" ps

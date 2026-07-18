@@ -1,9 +1,11 @@
 # Branching Strategy
 
-- `dev` branch → deploys to dev environment
-- `main` branch → deploys to prod environment
+One long-lived branch, deliberate promotion (canonicalized 2026-07-18; the old
+`dev`-branch model is retired):
 
-Workflow:
-
-- Feature branches branch from `dev`, merged via PR.
-- Hotfix branches can be merged into `main` after testing.
+- Feature branches (`feat/<short-name>`) branch from `main`, merged via PR.
+- **Push to `main` → auto-deploys the `dev` environment.**
+- **Prod is never deployed by a branch push** — promote via `workflow_dispatch`
+  (environment: `prod`) on the same commit, gated by the protected `prod` GitHub
+  environment (required reviewers).
+- Hotfixes: branch from `main`, PR, merge (deploys dev), then dispatch to prod.

@@ -1,21 +1,27 @@
-name: REPLACE_PROJECT_NAME # lowercase; must be unique per app+env on the VPS
+# Canonical app compose — see infra prompts/base.md. .env (next to this file on the VPS)
+# sets PROJECT_NAME + APP_DOMAIN; deploy.yml injects DEPLOY_ENVIRONMENT + IMAGE_TAG.
+name: ${PROJECT_NAME}-${DEPLOY_ENVIRONMENT}
 
 services:
   api:
-    image: ghcr.io/dvm-software-inc/${PROJECT_NAME}:latest
-    container_name: ${PROJECT_NAME}
+    image: ghcr.io/dvm-software-inc/${PROJECT_NAME}:${IMAGE_TAG}
+    container_name: ${PROJECT_NAME}-${DEPLOY_ENVIRONMENT}
+    restart: unless-stopped
     env_file:
       - .env
     networks:
-      - dokploy-network
-    restart: always
+      - web-public
     labels:
-      - "traefik.enable=true"
-      - "traefik.http.routers.${PROJECT_NAME}.rule=Host(`${APP_DOMAIN}`)"
-      - "traefik.http.routers.${PROJECT_NAME}.entrypoints=websecure"
-      - "traefik.http.routers.${PROJECT_NAME}.tls.certresolver=letsencrypt"
-      - "traefik.http.services.${PROJECT_NAME}.loadbalancer.server.port=${APP_PORT}"
+      - traefik.enable=true
+      - traefik.docker.network=web-public
+      - traefik.http.services.${PROJECT_NAME}-${DEPLOY_ENVIRONMENT}.loadbalancer.server.port=3000
+      - traefik.http.routers.${PROJECT_NAME}-${DEPLOY_ENVIRONMENT}.rule=Host(`${APP_DOMAIN}`)
+      - traefik.http.routers.${PROJECT_NAME}-${DEPLOY_ENVIRONMENT}.entrypoints=websecure
+      - traefik.http.routers.${PROJECT_NAME}-${DEPLOY_ENVIRONMENT}.tls.certresolver=letsencrypt
+      - traefik.http.routers.${PROJECT_NAME}-${DEPLOY_ENVIRONMENT}-http.rule=Host(`${APP_DOMAIN}`)
+      - traefik.http.routers.${PROJECT_NAME}-${DEPLOY_ENVIRONMENT}-http.entrypoints=web
+      - traefik.http.routers.${PROJECT_NAME}-${DEPLOY_ENVIRONMENT}-http.middlewares=redirect-to-https@file
 
 networks:
-  dokploy-network:
+  web-public:
     external: true
