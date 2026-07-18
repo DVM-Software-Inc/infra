@@ -83,11 +83,12 @@ jobs:
       image_tag: ${{ needs.build.outputs.image_tag }}
       require_env_file: true
       # migrate_command: docker compose -f "$COMPOSE_FILE" run --rm api alembic upgrade head
-    secrets:
-      VPS_HOST: ${{ secrets.VPS_HOST }}
-      VPS_USER: ${{ secrets.VPS_USER }}
-      VPS_SSH_KEY: ${{ secrets.VPS_SSH_KEY }}
-      VPS_FINGERPRINT: ${{ secrets.VPS_FINGERPRINT }}
+    # MUST be `inherit`, not an explicit list: an explicit secrets: block is
+    # evaluated in the caller's context, which has no environment, so the
+    # per-environment ENV_FILE secret arrives empty and require_env_file fails
+    # (bit talk2me 2026-07-18). With inherit, the called job's `environment:`
+    # resolves environment secrets correctly.
+    secrets: inherit
 ```
 
 - `build.yml` always pushes immutable `ghcr.io/dvm-software-inc/<image>:<env>-<shortsha>`
