@@ -91,6 +91,10 @@ jobs:
     secrets: inherit
 ```
 
+- `VPS_FINGERPRINT` must be the **ECDSA** host-key fingerprint
+  (`ssh-keyscan -t ecdsa 194.238.24.254 | ssh-keygen -lf -`), not ed25519 —
+  appleboy/ssh-action's Go SSH client negotiates ECDSA first and fails with
+  "host key fingerprint mismatch" otherwise (bit talk2me 2026-07-18).
 - `build.yml` always pushes immutable `ghcr.io/dvm-software-inc/<image>:<env>-<shortsha>`
   and can publish the moving `:<env>` compatibility alias. Deployments pass the immutable
   output to `deploy.yml`, which writes `IMAGE_TAG`/`TAG` into `.env`; Compose must reference
