@@ -150,6 +150,14 @@ Rules that matter:
 - Router/service names must be unique across the whole VPS — always suffix with env.
 - Backing services an app owns (redis, workers) join an app-private `internal` bridge
   network and get **no** Traefik labels; only web-facing services join `web-public`.
+- **Monitored apps also join the `monitoring` overlay** (external, attachable, swarm-scoped
+  like `web-public`; created 2026-07-18). cc_dvm pulls `/health` and receives pushed
+  business metrics over it — its ingest endpoint is *only* reachable there, never from the
+  public edge. Declare it in compose (`monitoring: {external: true, name: monitoring}`) —
+  a manual `docker network connect` does not survive redeploys. If a compose sets
+  `container_name`, know that cc_dvm's app definitions reference containers by DNS name —
+  update its seed (cc_dvm `backend/cmd/seed-apps`) when a monitored container is renamed.
+  Do NOT scaffold this network away when regenerating a monitored app's compose.
 - `restart: unless-stopped`, never `always`. No `version:` key (compose v2).
 - Single-quote values containing `$` in `.env` (argon2 hashes etc.) — compose interpolates
   unquoted `$`. Prefer `env_file:` over `${VAR}` interpolation for secret-bearing values.
