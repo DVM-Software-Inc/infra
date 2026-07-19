@@ -28,7 +28,8 @@ update this doc.
 - **Each product owns its root domain** (Namecheap), e.g. `chatactorai.com`:
   - prod: `app.<domain>` (web/UI) and `api.<domain>` (API) — single-container apps may use
     the root or one subdomain
-  - dev: `dev.<domain>` / `staging.api.<domain>` (prefix the prod host)
+  - dev: `dev.<domain>` (web) and `api.dev.<domain>` (API) — verified against the live
+    chatactorai-dev routers 2026-07-19; earlier `staging.api.<domain>` wording was wrong
   - `*.dvmsoftware.com` is reserved for internal utilities (vault, auth, traefik, …).
 - **DNS before deploy**: create the A record → `194.238.24.254` and verify
   `dig +short <host> A` resolves before `docker compose up`, or Let's Encrypt HTTP-01 fails.
