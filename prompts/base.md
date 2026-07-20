@@ -59,6 +59,10 @@ on:
         default: dev
         required: true
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   # lint/test jobs here — deploy must depend on them
 
@@ -92,6 +96,14 @@ jobs:
     secrets: inherit
 ```
 
+- **CI cost policy (local-first):** feature branches and pull requests trigger **no**
+  workflows — automatic runs happen only on push to `main` and on `v*` release tags;
+  everything else is `workflow_dispatch`. Pre-merge verification is local
+  (`./scripts/check.sh` or the repo's equivalent). `macos-*` runners are never used
+  where `ubuntu-latest` suffices, and macOS jobs never run automatically outside `v*`
+  release workflows. Every workflow includes the `concurrency` block above so obsolete
+  runs cancel instead of billing. To retrofit an existing repo, run
+  `prompts/gha-cost-optimization.md`.
 - `VPS_FINGERPRINT` must be the **ECDSA** host-key fingerprint
   (`ssh-keyscan -t ecdsa 194.238.24.254 | ssh-keygen -lf -`), not ed25519 —
   appleboy/ssh-action's Go SSH client negotiates ECDSA first and fails with

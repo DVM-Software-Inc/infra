@@ -31,6 +31,11 @@ URLs as `https:/$()/host` so `//` isn't parsed as a comment.)
 
 ## CI (GitHub Actions, `macos-latest`)
 
+Triggers follow the org CI cost policy (`base.md`): **`workflow_dispatch` only** — never
+push/PR triggers (macOS runners are ~10× ubuntu; pre-merge checks run locally with
+`xcodegen generate` + `swift test` + `xcodebuild test`), plus `v*` tags once a release
+process exists. Include the standard `concurrency` block. Job steps:
+
 ```yaml
 - brew install xcodegen && xcodegen generate   # in ios/<AppName>/
 - swift test                                    # each local SwiftPM package

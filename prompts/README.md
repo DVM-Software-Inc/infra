@@ -19,6 +19,12 @@ In an app repo, include **`base.md` + exactly one type file** as agent context:
 | iOS + backend | `base.md` + `ios-backend.md` |
 | macOS app (menu-bar/desktop) | `macos.md`; add `base.md` + `frontend.md` if it ships a marketing site, `base.md` + `backend.md` if it has a server |
 
+Cross-cutting task prompts (not app-type context — run them as one-off agent tasks):
+
+- `gha-cost-optimization.md` — audit and rewrite a repo's workflows to the org CI cost
+  policy: no automatic workflows on feature branches/PRs, automatic only on `main` and
+  `v*` tags, concurrency everywhere, macOS runners only where required.
+
 ## Delivery mechanisms
 
 - **Locally (primary):** the `dvm-app-conventions` skill (`~/.claude/skills/`) auto-routes

@@ -57,9 +57,16 @@ testable with `swift test` and reusable by the iOS app and CLI.
   `<PRODUCT>_REQUIRE_STABLE_SIGNING=1` flag must forbid the ad-hoc fallback for any build
   that leaves the machine.
 - `scripts/check.sh` (build + `swift test`) is the pre-commit gate; keep acceptance/smoke
-  scripts beside it.
-- No CI exists for macOS apps yet — when adding one, mirror `ios.md`: `macos-latest`
-  runner, `swift test`, then the build script.
+  scripts beside it. **It is the only per-commit gate — CI never runs on pushes or PRs.**
+- CI follows the org CI cost policy (`base.md`; retrofit via
+  `prompts/gha-cost-optimization.md`) — macOS runner minutes are ~10× ubuntu, so:
+  - `verify.yml`: **`workflow_dispatch` only**, `macos-latest`, runs `scripts/check.sh`.
+    No packaging, no artifacts.
+  - `release.yml`: `workflow_dispatch` + `push: tags: ["v*"]`, `macos-latest` — clean
+    build, sign, package, publish (contents per repo until distribution is
+    standardized, below).
+  - Both carry the standard `concurrency` block; any job that doesn't need Xcode/AppKit
+    (lint, docs, web/) runs on `ubuntu-latest`.
 
 ## Not yet standardized (do NOT invent)
 
