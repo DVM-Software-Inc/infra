@@ -184,8 +184,30 @@ app-postgres psql -U postgres"`):
 ```sql
 CREATE USER <slug>_<env> WITH PASSWORD '<from-vaultwarden>';
 CREATE DATABASE <slug>_<env> OWNER <slug>_<env>;
-GRANT ALL PRIVILEGES ON DATABASE <slug>_<env> TO <slug>_<env>;
+
+-- Isolation. Postgres grants CONNECT to PUBLIC on every new database, so
+-- without these every app's role can reach every other app's database on the
+-- shared instance. Verified 2026-07-31: all 37 databases were mutually
+-- reachable by any valid role. Data was not readable (no PUBLIC grants on app
+-- tables), but schema, table, column and role names were enumerable estate-wide
+-- from a single leaked credential.
+REVOKE CONNECT ON DATABASE <slug>_<env> FROM PUBLIC;
+GRANT  CONNECT ON DATABASE <slug>_<env> TO <slug>_<env>;
+
+-- Then, connected to the new database (\c <slug>_<env>):
+-- PUBLIC gets CREATE on schema public by default, letting any role plant
+-- objects here.
+REVOKE CREATE ON SCHEMA public FROM PUBLIC;
 ```
+
+**A database and user created for an app must be able to reach only that app's
+database.** One leaked `DATABASE_URL` is then worth exactly one database, not
+the whole instance. Do not skip the REVOKEs because "it's only dev" — the
+2026-07-31 incident leaked a dev credential from a compromised container.
+
+`GRANT ALL PRIVILEGES ON DATABASE` is unnecessary when the role already owns the
+database, and it does not grant what people assume — it covers CONNECT, CREATE
+and TEMP, never table access.
 
 Store the password in Vaultwarden as `postgres-<slug>-<env>`. The app connects with
 `postgresql://<slug>_<env>:<pw>@postgres:5432/<slug>_<env>` (asyncpg variant:
