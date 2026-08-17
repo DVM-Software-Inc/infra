@@ -1,11 +1,14 @@
 # LLM prompts by app type
 
 Drop-in context files that make any LLM session (Claude Code, Codex, Copilot, …) follow the
-DVM-Software deployment conventions without re-explanation.
+DVM-Software deployment conventions without re-explanation. Every application also reads
+`messaging.md`; it defines the mandatory shared path for authenticated user-to-business
+communication.
 
 ## How to use
 
-In an app repo, include **`base.md` + exactly one type file** as agent context:
+In an app repo, include **`messaging.md` plus `base.md` + exactly one type file** as agent
+context. Native-only repositories that do not use `base.md` still include `messaging.md`:
 
 - Copy them into the repo (e.g. `docs/llm/`) and reference them from `CLAUDE.md` / `AGENTS.md`, or
 - Paste their content directly into the repo's `CLAUDE.md`.
@@ -18,6 +21,10 @@ In an app repo, include **`base.md` + exactly one type file** as agent context:
 | iOS only | `ios.md` (base not needed — no VPS footprint) |
 | iOS + backend | `base.md` + `ios-backend.md` |
 | macOS app (menu-bar/desktop) | `macos.md`; add `base.md` + `frontend.md` if it ships a marketing site, `base.md` + `backend.md` if it has a server |
+
+`messaging.md` does not require every app to display a message composer. It requires every
+app that does support authenticated user-to-business communication to use the shared DVM
+Messaging API instead of Chatwoot or an app-local messaging engine.
 
 Cross-cutting task prompts (not app-type context — run them as one-off agent tasks):
 

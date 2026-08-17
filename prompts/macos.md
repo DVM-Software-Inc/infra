@@ -4,6 +4,10 @@ Conventions proven by `talk2me` (menu-bar push-to-talk dictation). A macOS app i
 no VPS footprint — add `base.md` + `frontend.md` only if the repo also ships a marketing
 site, and `base.md` + `backend.md` if it gains a server component.
 
+Read `messaging.md` even when `base.md` does not apply. Authenticated user-to-business
+messaging uses the shared public Messaging API; a native app never contains Chatwoot or
+notification-provider credentials.
+
 ## Repo shape — SwiftPM-first monorepo
 
 For utilities and menu-bar apps, **SwiftPM is the project system** — no `.xcodeproj`, no

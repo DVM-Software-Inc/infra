@@ -1,6 +1,8 @@
 # App type: iOS only
 
 Conventions proven by `health` (ItHurtsDoctor). No VPS footprint → `base.md` not required.
+`messaging.md` is still required: an iOS app with authenticated user-to-business messaging
+uses the shared public Messaging API and never bundles Chatwoot/provider credentials.
 
 ## Project setup
 

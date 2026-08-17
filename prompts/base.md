@@ -4,6 +4,10 @@ You are working in a DVM-Software-Inc app repo. Follow these conventions exactly
 invent alternatives. When something here conflicts with the live VPS, the VPS wins — then
 update this doc.
 
+Read `messaging.md` as a required cross-cutting standard. Authenticated
+user-to-business communication goes through the shared DVM Messaging API; product apps
+never call Chatwoot directly or create their own customer communication engine.
+
 ## Topology
 
 - **One VPS** (Contabo, `194.238.24.254`, `ssh contabo`) runs everything as Docker Compose
@@ -221,6 +225,9 @@ load or compliance.
   project-specific detail (hosts, services, env vars, anything an agent can't infer).
 - Auth for human users goes through Authentik SSO (OIDC) — see
   `~/code/vps_deploy/infra_llm/docs/auth-playbook.md`. Don't build standalone password auth.
+- If the product offers authenticated user-to-business communication, document and test
+  its integration according to `prompts/messaging.md`. Product secrets and compose files
+  must not contain Chatwoot credentials or inbox IDs.
 
 ## Verify a deploy
 
