@@ -51,6 +51,9 @@ on:
       GHCR_TOKEN:
         required: false
         description: Deprecated compatibility input; defaults to github.token.
+      GIT_AUTH_TOKEN:
+        required: false
+        description: Optional token exposed only as a BuildKit secret for private Git dependencies.
 
 jobs:
   build:
@@ -111,5 +114,7 @@ jobs:
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           build-args: ${{ inputs.build_args }}
+          secrets: |
+            GIT_AUTH_TOKEN=${{ secrets.GIT_AUTH_TOKEN }}
           cache-from: type=gha,scope=${{ inputs.cache_scope || inputs.image_name }}-${{ inputs.environment }}
           cache-to: type=gha,mode=max,scope=${{ inputs.cache_scope || inputs.image_name }}-${{ inputs.environment }}
