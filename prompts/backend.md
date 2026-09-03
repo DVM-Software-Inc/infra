@@ -43,4 +43,6 @@ use absent an explicit reason.
 ## Auth
 
 - Machine/service clients: bearer tokens or API keys issued by the app.
-- Human-facing endpoints (admin UIs, dashboards): Authentik OIDC per the auth playbook.
+- Human-facing endpoints (admin UIs, dashboards): OIDC against the product's Keycloak
+  realm — see `base.md` → Authentication. Validate tokens against the realm's JWKS;
+  the issuer is the product's auth host, never `key.dvmsoftware.com`.

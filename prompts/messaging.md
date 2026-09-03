@@ -43,11 +43,11 @@ proof of access.
 
 ## Identity and client behavior
 
-- Web applications use the Authentik/BFF pattern from `fullstack.md`: the BFF calls the
+- Web applications use the Keycloak/BFF pattern from `fullstack.md`: the BFF calls the
   Messaging API with the user's server-held access token. Browser JavaScript never holds
   a provider credential.
 - Native applications call their own backend or the Messaging API with an approved
-  app-issued/Authenik token contract. They never bundle a Chatwoot or notification-provider
+  app-issued/Keycloak token contract. They never bundle a Chatwoot or notification-provider
   secret.
 - Prefer the shared React/client package when it supports the host stack. Native clients
   may implement native presentation over the same public API, but not a separate backend.

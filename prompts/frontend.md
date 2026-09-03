@@ -19,6 +19,7 @@ Single container behind Traefik at `app.<domain>` (or the root domain):
   `VITE_*` build args) → per-environment images tagged `:<env>`.
 - A frontend-only container holds **no secrets** — anything in the bundle is public. If a
   secret seems needed (API keys, signing), the app has a backend: switch to `fullstack.md`.
-- If login is required, don't implement auth in the SPA — front it with Authentik
-  (forward-auth middleware or make it a Next BFF per `fullstack.md`).
+- If login is required, don't implement auth in the SPA — front it with the product's
+  Keycloak realm (forward-auth middleware, or make it a Next BFF per `fullstack.md`).
+  The SPA is a client of the realm; it never handles credentials.
 - SPA fallback for client-side routing (nginx `try_files … /index.html`).

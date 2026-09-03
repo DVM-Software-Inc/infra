@@ -218,13 +218,81 @@ Store the password in Vaultwarden as `postgres-<slug>-<env>`. The app connects w
 `postgresql+asyncpg://…`). Default to shared Postgres; dedicated instances only for heavy
 load or compliance.
 
+## Authentication — Keycloak, one realm per product
+
+**Decided 2026-09-02, replacing Authentik.** Reasoning:
+`~/code/vps_deploy/infra_llm/docs/auth.md` §16. Design and runbooks:
+`~/code/keycloak/docs/`.
+
+Every DVM app is a **customer-facing product**, including ones built first to
+serve a DVM function. Products do not share a user directory: someone who
+registers at two products has two unrelated accounts, and that is the feature.
+
+- **One Keycloak realm per product per environment** — `<product>-dev`,
+  `<product>-prod`. There is no `internal` realm.
+- **No SSO between products.** Not a missing feature; the thing being removed.
+- **A realm is a product, never a customer.** Multi-tenancy lives *inside* the
+  product (gelopreto: `tenant_id` under `FORCE ROW LEVEL SECURITY`). Realms per
+  customer would mean thousands of realms and no way to operate them.
+- **No global usernames.** Email is the identifier. A username unique across
+  products requires one shared namespace, which is a shared directory wearing a
+  hat — and "that name is taken" leaks a holder in an unrelated product.
+
+### The app is an OIDC CLIENT of its realm
+
+This is the distinction that gets muddled, so state it plainly: **the
+application authenticates to Keycloak.** It is not an authentication authority
+and it never sees a credential. Users authenticate against the realm; the app
+receives and validates tokens.
+
+- The app never handles a password, a social login, or an MFA challenge.
+- The app's job is: redirect to the realm, validate the token, trust the claims.
+- Registration, verification, password reset and identity linking all belong to
+  the realm. Do not reimplement any of them.
+
+### The issuer is the PRODUCT's host — never the shared one
+
+Keycloak runs at `key.dvmsoftware.com`, but **no product ever points at it.**
+Each realm sets a `frontendUrl`, so its login pages and every OIDC endpoint it
+advertises are on the product's own domain:
+
+```
+OIDC_ISSUER_URL = https://auth.<product-domain>/realms/<product>-<env>
+```
+
+e.g. `https://auth.comcentre.online/realms/cc-dvm-dev`. JWKS, authorize and
+token endpoints all derive from that issuer — verified end to end, including the
+`iss` claim in a minted token.
+
+**If you find `key.dvmsoftware.com` in an app's configuration, it is wrong.**
+That host is the admin console and the master realm. A product pointing at it
+tells its users that fourteen other products share the same infrastructure,
+which is the whole thing this architecture prevents.
+
+### Transition state — read this before assuming
+
+As of 2026-09-03 **one realm exists** (`cc-dvm-dev`) and **Authentik still serves
+all 18 applications it served before.** Nothing has been migrated.
+
+- **New work** follows this standard.
+- **Existing apps** stay on Authentik until their realm exists and they are cut
+  over, one product at a time.
+- Do not "fix" an app that points at Authentik. It is not drift; it has not
+  moved yet.
+
+Migration plan and phase order: `~/code/keycloak/docs/migration-from-authentik.md`.
+
+Adding a realm is three coordinated changes, not one — DNS A record for the auth
+host, a Traefik router (one per host, never an OR-rule), then Terraform. See
+`~/code/keycloak/terraform/README.md`.
+
 ## Repo hygiene (every server-deployed repo)
 
 - `Dockerfile` per deployable service; compose under `deploy/`; `.env.example` (names +
   Vaultwarden item references only); `.github/workflows/ci.yml`; `/docs/overview.md` with
   project-specific detail (hosts, services, env vars, anything an agent can't infer).
-- Auth for human users goes through Authentik SSO (OIDC) — see
-  `~/code/vps_deploy/infra_llm/docs/auth-playbook.md`. Don't build standalone password auth.
+- Auth for human users goes through **Keycloak** (OIDC) — see "Authentication" above.
+  Don't build standalone password auth.
 - If the product offers authenticated user-to-business communication, document and test
   its integration according to `prompts/messaging.md`. Product secrets and compose files
   must not contain Chatwoot credentials or inbox IDs.

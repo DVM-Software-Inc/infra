@@ -39,8 +39,13 @@ Runtime resolution order in the app (a small `AppRuntimeConfig`):
 
 - Versioned paths: `/api/v1/…`; `GET /health` unauthenticated.
 - Mobile clients authenticate with app-issued tokens (or attestation-based anonymous
-  tokens for privacy-first apps) — not session cookies. Human/admin surfaces still use
-  Authentik per `base.md`.
+  tokens for privacy-first apps) — not session cookies. Human/admin surfaces use the
+  product's Keycloak realm per `base.md`.
+- **Sign in with Apple becomes mandatory** once an iOS app offers any other social
+  login (App Store guideline 4.8). Keycloak does not ship an Apple provider: it needs a
+  generic OIDC provider, and Apple's client secret is a signed JWT expiring within six
+  months, so it needs rotation automation. Plan for it before shipping Google sign-in
+  in an iOS app.
 - Client credentials/config the app needs at runtime come from build-config values or
   Keychain — never committed. Breaking API changes require a new `/api/v2`, since old app
   builds stay in the field.

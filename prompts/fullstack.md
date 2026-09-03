@@ -39,19 +39,24 @@ VPS instance — never a service in the deploy compose.
 
 ## Auth — BFF pattern (the standard)
 
-The Next app is an OIDC **backend-for-frontend** against Authentik:
+The Next app is an OIDC **backend-for-frontend** against **its product's Keycloak
+realm** — see `base.md` → Authentication. The app is a *client* of the realm; it
+never authenticates anyone itself.
 
 - `openid-client` + `iron-session`: the browser holds only an encrypted session cookie;
   tokens never reach client JS.
 - Next route handlers implement `/auth/login|callback|logout`, plus an `/api/[...path]`
   proxy that attaches the bearer token server-side and forwards to the api container over
   the `internal` network (`http://api:8000`).
-- FastAPI validates RS256 JWTs against the Authentik JWKS. Direct-to-API clients
+- FastAPI validates RS256 JWTs against the **realm's** JWKS (derived from `OIDC_ISSUER_URL`). Direct-to-API clients
   (widgets, integrations) use app-issued tokens/API keys instead of the cookie.
 - OIDC env var names: `OIDC_ISSUER_URL`, `OIDC_CLIENT_ID`, `OIDC_CLIENT_SECRET`,
   `OIDC_REDIRECT_URI` (`https://<app-host>/auth/callback`), `OIDC_SCOPES`
-  (`openid email profile offline_access groups`), `SESSION_SECRET`.
-  Provisioning: `infra_llm/docs/auth-playbook.md`.
+  (`openid email profile offline_access`), `SESSION_SECRET`.
+- **`OIDC_ISSUER_URL` is the product's own auth host**, never `key.dvmsoftware.com`:
+  `https://auth.<product-domain>/realms/<product>-<env>`. Everything else — JWKS,
+  authorize, token — derives from it.
+  Provisioning: `~/code/keycloak/terraform/`.
 
 ## CI/CD deltas from base
 
