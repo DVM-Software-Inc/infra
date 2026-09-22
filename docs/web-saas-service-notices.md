@@ -21,5 +21,5 @@ Add supported locale selection, fallback, translated UI/public/help/billing/supp
 ## Rollout tracking
 
 - [x] ChatActorAI: first implementation prepared; merge and deployed acceptance remain.
-- [ ] DVM Fullstack: apply the same contract to its public and authenticated pages and operator console.
+- [x] DVM Fullstack: implementation prepared in `DVM-Software-Inc/dvm-fullstack#35`; merge and deployed acceptance remain.
 - [ ] Review the inventory of other customer-facing web SaaS apps before each release; each must either pass this acceptance suite or record a justified non-SaaS exception.
