@@ -23,5 +23,6 @@ Add supported locale selection, fallback, translated UI/public/help/billing/supp
 - [x] ChatActorAI: first implementation prepared; merge and deployed acceptance remain.
 - [x] DVM Fullstack: implementation prepared in `DVM-Software-Inc/dvm-fullstack#35`; merge and deployed acceptance remain.
 - [x] EnoughLedger (`smb-tax`): implementation prepared in `DVM-Software-Inc/smb-tax#5`; configure operator IDs, merge, migrate, and complete deployed acceptance.
-- [ ] Confirm the remaining candidate inventory against the live deployment registry: `cc_dvm`, `gelopreto`, `contextorai`, `estimator`, `buildfoundry`, `dvm-architect`, `builtdvm`, and `knowingbest` (which may have only an internal web admin). This list is an initial repository scan, not a claim that every product is active or customer-facing.
+- [x] ContextorAI: implementation prepared in `DVM-Software-Inc/contextorai#3`; provision Authentik service-operator group, merge, migrate, and complete deployed acceptance.
+- [ ] Confirm the remaining candidate inventory against the live deployment registry: `cc_dvm`, `gelopreto`, `estimator`, `buildfoundry`, `dvm-architect`, `builtdvm`, and `knowingbest` (which may have only an internal web admin). This list is an initial repository scan, not a claim that every product is active or customer-facing.
 - [ ] Before each release, record whether that web app passes this acceptance suite or has a justified non-SaaS/non-customer-facing exception. Add newly deployed products to the inventory.
