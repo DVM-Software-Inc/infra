@@ -1,6 +1,6 @@
 # Web SaaS service-notice standard
 
-Every customer-facing DVM web SaaS application must support a site-wide service notice at launch. The app owns its notice records and operator controls; no new central service is required for a small portfolio. ChatActorAI's `docs/service-notices.md` is the first implementation and acceptance example. A shared component/package is worth extracting only after a second app proves the same contract.
+Every customer-facing DVM web SaaS application must support a site-wide service notice at launch. The app owns its notice records and operator controls; no new central service is required for a small portfolio. ChatActorAI's `docs/service-notices.md` is the first implementation and acceptance example. The first four implementations use different app stacks, so keep the HTTP/data/QE contract shared; extract a framework-specific UI package only where multiple apps truly share that framework and component lifecycle.
 
 ## Required behavior
 
@@ -24,5 +24,9 @@ Add supported locale selection, fallback, translated UI/public/help/billing/supp
 - [x] DVM Fullstack: implementation prepared in `DVM-Software-Inc/dvm-fullstack#35`; merge and deployed acceptance remain.
 - [x] EnoughLedger (`smb-tax`): implementation prepared in `DVM-Software-Inc/smb-tax#5`; configure operator IDs, merge, migrate, and complete deployed acceptance.
 - [x] ContextorAI: implementation prepared in `DVM-Software-Inc/contextorai#3`; provision Authentik service-operator group, merge, migrate, and complete deployed acceptance.
-- [ ] Confirm the remaining candidate inventory against the live deployment registry: `cc_dvm`, `gelopreto`, `estimator`, `buildfoundry`, `dvm-architect`, `builtdvm`, and `knowingbest` (which may have only an internal web admin). This list is an initial repository scan, not a claim that every product is active or customer-facing.
+- [ ] DVM Architect: customer-facing architecture workspace live in dev; next implementation candidate. Its current local checkout has an in-progress platform-admin change, so reconcile the operator authorization boundary before preparing its notice PR.
+- [ ] BuildFoundry: web SaaS foundation in dev. Add notices before a customer-facing release, after its operator access is finalized.
+- [ ] Estimator: pre-deploy skeleton (no DNS/DB/OIDC provisioned). Add notices before launch rather than treating its scaffold as a live rollout target.
+- [ ] KnowingBest: iOS customer app with staff-only web moderation console. Revisit when an end-user web experience ships; mobile service messaging needs a separate product requirement.
+- [x] Scope review: `cc_dvm` and Gelopreto are internal operator tools; `builtdvm` is a static product site, not a web SaaS. They are not customer-facing launch gates under this standard. Reassess if their audience changes.
 - [ ] Before each release, record whether that web app passes this acceptance suite or has a justified non-SaaS/non-customer-facing exception. Add newly deployed products to the inventory.
