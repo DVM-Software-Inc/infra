@@ -3,6 +3,10 @@
 Read `base.md` first. For a web UI with no backend of its own (the API it talks to is
 someone else's deployment, or there is none).
 
+For customer-facing web SaaS, implement the scheduled service-notice banner in
+`../docs/web-saas-service-notices.md` before release. A frontend-only app can use
+an existing authenticated operator API for notice storage and publication.
+
 ## Shape
 
 Single container behind Traefik at `app.<domain>` (or the root domain):

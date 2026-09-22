@@ -17,3 +17,5 @@
 - macOS repos follow `prompts/macos.md` (SwiftPM-first, core/app split, Keychain secrets).
 - Full per-app-type conventions: **`prompts/`** in this repo — `base.md` + one type file
   is the canonical context to give any LLM session.
+- Customer-facing web SaaS apps must implement the scheduled, operator-managed
+  service notices in [`web-saas-service-notices.md`](web-saas-service-notices.md).
