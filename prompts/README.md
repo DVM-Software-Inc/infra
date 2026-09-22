@@ -26,6 +26,9 @@ context. Native-only repositories that do not use `base.md` still include `messa
 app that does support authenticated user-to-business communication to use the shared DVM
 Messaging API instead of Chatwoot or an app-local messaging engine.
 
+Customer-facing web SaaS apps also follow `../docs/web-saas-service-notices.md` for
+scheduled maintenance and incident banners; this is a release acceptance standard.
+
 Cross-cutting task prompts (not app-type context — run them as one-off agent tasks):
 
 - `gha-cost-optimization.md` — audit and rewrite a repo's workflows to the org CI cost

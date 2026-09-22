@@ -3,6 +3,9 @@
 Read `base.md` first. This is the pattern proven by `chatactorai`; follow it for any
 web-UI + API product. Backend specifics also follow `backend.md`.
 
+For customer-facing web SaaS, implement the scheduled service-notice banner and
+operator controls in `../docs/web-saas-service-notices.md` before release.
+
 ## Repo shape — monorepo, npm workspaces
 
 ```
