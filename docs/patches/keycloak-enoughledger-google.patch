@@ -1,0 +1,48 @@
+diff --git a/terraform/main.tf b/terraform/main.tf
+--- a/terraform/main.tf
++++ b/terraform/main.tf
+@@ -121,7 +121,7 @@ module "smb_tax_dev" {
+   ses_smtp_password = var.ses_smtp_password
+ 
+-  google_client_id     = ""
+-  google_client_secret = ""
++  google_client_id     = var.smbtax_google_client_id
++  google_client_secret = var.smbtax_google_client_secret
+   web_client_secret    = var.smbtax_web_client_secret
+ 
+   enable_m2m_client      = false
+@@ -137,6 +137,11 @@ output "smb_tax_dev_oidc_client_id" {
+   value = module.smb_tax_dev.web_client_id
+ }
+ 
++output "smb_tax_dev_google_redirect_uri" {
++  description = "Exact broker callback for the EnoughLedger Google dev client."
++  value       = module.smb_tax_dev.google_redirect_uri
++}
++
+ # DVM Architect — architecture standards and application catalog. The product
+ # carries tenancy in Postgres; the realm handles identity only. Dev uses the
+ # app's explicit auto-provision setting while the internal catalog is being
+diff --git a/terraform/variables.tf b/terraform/variables.tf
+--- a/terraform/variables.tf
++++ b/terraform/variables.tf
+@@ -83,6 +83,19 @@ variable "smbtax_web_client_secret" {
+   sensitive   = true
+ }
+ 
++variable "smbtax_google_client_id" {
++  description = "EnoughLedger Google dev OAuth client ID. Vaultwarden: google/smb-tax/oauth-dev. Empty disables the provider."
++  type        = string
++  default     = ""
++}
++
++variable "smbtax_google_client_secret" {
++  description = "EnoughLedger Google dev OAuth secret. Inject from Vaultwarden via TF_VAR_smbtax_google_client_secret; never commit."
++  type        = string
++  default     = ""
++  sensitive   = true
++}
++
+ variable "dvm_architect_web_client_secret" {
+   description = "Confidential OIDC client secret for the DVM Architect dev BFF. Set via TF_VAR_dvm_architect_web_client_secret; never committed."
+   type        = string

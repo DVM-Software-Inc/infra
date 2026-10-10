@@ -8,7 +8,8 @@ communication.
 ## How to use
 
 In an app repo, include **`messaging.md` plus `base.md` + exactly one type file** as agent
-context. Native-only repositories that do not use `base.md` still include `messaging.md`:
+context. Then add the applicable capability overlays. Native-only repositories that do
+not use `base.md` still include `messaging.md`:
 
 - Copy them into the repo (e.g. `docs/llm/`) and reference them from `CLAUDE.md` / `AGENTS.md`, or
 - Paste their content directly into the repo's `CLAUDE.md`.
@@ -26,11 +27,26 @@ context. Native-only repositories that do not use `base.md` still include `messa
 app that does support authenticated user-to-business communication to use the shared DVM
 Messaging API instead of Chatwoot or an app-local messaging engine.
 
+Capability overlays are additive, not app types:
+
+| Product capability | Also use |
+|---|---|
+| Customer accounts, organizations, admin/support workflows, billing or entitlements | `saas.md` |
+| Product-managed LLM/AI inference, paid AI usage, RAG, or model-backed operator tools | `ai-product.md` |
+
+`saas.md` is required for apps that manage customers even when they are free. Its billing,
+messaging, and AI modules apply only when used. `ai-product.md` is required whenever the
+business pays for model calls on a customer's behalf; it prioritizes measured task quality
+and cost per successful outcome over model novelty.
+
 Cross-cutting task prompts (not app-type context — run them as one-off agent tasks):
 
 - `gha-cost-optimization.md` — audit and rewrite a repo's workflows to the org CI cost
   policy: no automatic workflows on feature branches/PRs, automatic only on `main` and
   `v*` tags, concurrency everywhere, macOS runners only where required.
+- `docs/keycloak-migration.md` — portfolio control plane for the Authentik → Keycloak
+  rollout, including current app ownership and acceptance evidence. This is referenced,
+  not copied as app-type context.
 
 ## Delivery mechanisms
 

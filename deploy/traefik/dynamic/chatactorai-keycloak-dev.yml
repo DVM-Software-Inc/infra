@@ -1,0 +1,13 @@
+# Deployed to /opt/traefik/dynamic/chatactorai-keycloak-dev.yml.
+# Coexists with the current Authentik host router. Do not add a whole-host
+# Keycloak router: only this realm and public static assets belong here.
+# The existing file provider watches its mounted directory; no restart needed.
+http:
+  routers:
+    keycloak-chatactorai-dev:
+      rule: Host(`auth.chatactorai.com`) && (Path(`/realms/chatactorai-dev`) || PathPrefix(`/realms/chatactorai-dev/`) || PathPrefix(`/resources/`))
+      entryPoints: [websecure]
+      service: keycloak@docker
+      priority: 200
+      tls:
+        certResolver: letsencrypt

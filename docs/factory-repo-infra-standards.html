@@ -1,0 +1,432 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DVM Software — Factory Repo Infrastructure Standards</title>
+<style>
+  :root{--bg:#0f1115;--surface:#171a21;--surface-2:#1e222b;--border:#2a2f3a;--text:#e6e9ef;--muted:#9aa3b2;--accent:#4f9cf9;--accent-2:#8b5cf6;--green:#34d399;--amber:#fbbf24;--red:#f87171}
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth;scroll-padding-top:20px}
+  body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;background:var(--bg);color:var(--text);line-height:1.55}
+  .wrap{max-width:1000px;margin:0 auto;padding:40px 24px 80px}
+  header h1{font-size:1.7rem;margin:0 0 4px}
+  header p.sub{color:var(--muted);margin:0 0 8px}
+  header p.src{color:var(--muted);font-size:0.85rem}
+  header p.src code{color:var(--accent)}
+  nav.toc{display:flex;flex-wrap:wrap;gap:8px;margin:24px 0 32px}
+  nav.toc a{color:var(--text);text-decoration:none;font-size:0.85rem;background:var(--surface);border:1px solid var(--border);padding:6px 12px;border-radius:999px}
+  nav.toc a:hover{border-color:var(--accent)}
+  section.card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:24px 28px;margin-bottom:28px}
+  section.card > h2{font-size:1.25rem;margin:0 0 2px}
+  section.card > p.tag{color:var(--muted);font-size:0.85rem;margin:0 0 16px}
+  h3{font-size:0.95rem;text-transform:uppercase;letter-spacing:0.06em;color:var(--accent);margin:20px 0 8px}
+  h4{font-size:1.02rem;margin:22px 0 4px;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+  ul{margin:8px 0;padding-left:20px}
+  li{margin:4px 0}
+  code{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:0.85em;background:var(--surface-2);border:1px solid var(--border);border-radius:4px;padding:1px 5px;color:#c8d3f5}
+  a{color:var(--accent);text-underline-offset:3px}
+  a:hover{color:#8ec0ff}
+  table{border-collapse:collapse;width:100%;margin:10px 0;font-size:0.9rem}
+  th,td{text-align:left;padding:8px 10px;border:1px solid var(--border);vertical-align:top}
+  th{background:var(--surface-2);color:var(--muted);font-weight:600}
+  .badge{display:inline-block;font-size:0.7rem;font-weight:600;padding:2px 8px;border-radius:999px;vertical-align:middle}
+  .badge.req{background:rgba(52,211,153,.15);color:var(--green);border:1px solid rgba(52,211,153,.4)}
+  .badge.opt{background:rgba(79,156,249,.15);color:var(--accent);border:1px solid rgba(79,156,249,.4)}
+  .badge.ver{background:rgba(139,92,246,.15);color:var(--accent-2);border:1px solid rgba(139,92,246,.4)}
+  .callout{border-left:3px solid var(--amber);background:rgba(251,191,36,.07);padding:10px 14px;border-radius:0 8px 8px 0;margin:12px 0;font-size:0.9rem}
+  .callout.warn{border-color:var(--red);background:rgba(248,113,113,.07)}
+  .callout.info{border-color:var(--accent);background:rgba(79,156,249,.07)}
+  .callout strong{color:var(--amber)}
+  .callout.warn strong{color:var(--red)}
+  .callout.info strong{color:var(--accent)}
+  .module{border-top:1px solid var(--border);padding:16px 0 6px}
+  .module:first-of-type{border-top:none;padding-top:4px}
+  .module p.path{margin:2px 0 10px;font-size:0.82rem;color:var(--muted)}
+  .requires{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:0.78rem;background:var(--surface-2);border:1px solid var(--border);border-radius:8px;padding:10px 14px;color:#b6c2d9;margin:8px 0;white-space:pre-wrap}
+  footer{color:var(--muted);font-size:0.8rem;margin-top:40px;border-top:1px solid var(--border);padding-top:16px}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header>
+  <h1>DVM Software — Factory Repo Infrastructure Standards</h1>
+  <p class="sub">Index and review of the infrastructure standards modules in the SDLC library, to be applied across all applications.</p>
+  <p class="src">Source of truth: <code>~/code/factory_repo/sdlc-library/infra/</code> (15 modules) ·
+    <a href="https://github.com/DVM-Software-Inc/factory_repo/tree/main/sdlc-library/infra">View on GitHub</a> ·
+    Generated 2026-09-18</p>
+</header>
+
+<nav class="toc">
+  <a href="#overview">Overview</a>
+  <a href="#review">Review Summary</a>
+  <a href="#providers">Cloud Providers</a>
+  <a href="#vps">VPS / Docker Infra</a>
+  <a href="#runtimes">Runtimes</a>
+  <a href="#edge">Edge Proxies</a>
+  <a href="#dns">DNS &amp; TLS</a>
+  <a href="#environments">Environments</a>
+  <a href="#stacks">Stack Presets</a>
+  <a href="#decision">Decision Guide</a>
+  <a href="#refs">Cross-References</a>
+</nav>
+
+<section class="card" id="overview">
+  <h2>Overview</h2>
+  <p class="tag">How the infrastructure standards library is organized and how it should be consumed.</p>
+
+  <h3>What This Is</h3>
+  <ul>
+    <li>The <code>sdlc-library/infra/</code> folder is the canonical set of <strong>infrastructure decision modules</strong> for the software factory. Each module is a versioned markdown file with front matter (<code>category</code>, <code>option</code>, <code>version</code>, <code>priority</code>, <code>requires</code>) plus normative sections (purpose, architecture rules, security requirements, do-not-deviate constraints).</li>
+    <li>Modules are composable: an application selects <strong>one infrastructure platform</strong>, <strong>one runtime</strong>, optionally <strong>one edge proxy</strong>, and <strong>one DNS/TLS strategy</strong> — or adopts a pre-composed <strong>stack preset</strong> that pins a known-good combination.</li>
+    <li>These standards apply across all DVM applications. Selecting a module means its rules, security requirements, and "DO NOT DEVIATE" constraints are binding for that application.</li>
+  </ul>
+
+  <h3>Module Inventory</h3>
+  <table>
+    <tr><th>Category</th><th>Prefix</th><th>Modules</th><th>Purpose</th></tr>
+    <tr><td>Cloud provider</td><td><code>infra_cloud_*</code></td><td>3</td><td>AWS, Azure, GCP platform standards</td></tr>
+    <tr><td>Infrastructure</td><td><code>infra_vps_docker</code></td><td>1</td><td>Self-hosted VPS + Docker deployment model</td></tr>
+    <tr><td>Runtime</td><td><code>runtime_*</code></td><td>3</td><td>Kubernetes, Serverless, VPS Docker runtime contracts</td></tr>
+    <tr><td>Edge proxy</td><td><code>edge_*</code></td><td>2</td><td>Caddy, Traefik reverse proxy standards</td></tr>
+    <tr><td>DNS &amp; TLS</td><td><code>dns_tls_*</code></td><td>2</td><td>Let's Encrypt, provider-managed certificates</td></tr>
+    <tr><td>Environments</td><td><code>env_*</code></td><td>1</td><td>Dev / stage / prod separation rules</td></tr>
+    <tr><td>Stack presets</td><td><code>stack_*</code></td><td>3</td><td>Pre-composed, dependency-checked combinations</td></tr>
+  </table>
+
+  <h3>Module Anatomy</h3>
+  <ul>
+    <li><strong>Cloud provider modules</strong> (<code>infra_cloud_*</code>, <code>infra_vps_docker</code>) use the full SDLC template: purpose, when-to-use, system role, tech stack definition, architecture rules, project structure, implementation standards, configuration, security, performance, observability, deployment, do-not-deviate, references.</li>
+    <li><strong>Runtime / edge / DNS-TLS / environment modules</strong> use a lighter heading-based format covering provisioning, network layout, container runtime, config injection, storage, logging/metrics, and do-not-deviate constraints.</li>
+    <li><strong>Stack presets</strong> declare explicit <code>requires</code> dependencies on other modules (e.g. Caddy requires the VPS Docker runtime), define required directories/files, runbook expectations, and standard env vars.</li>
+  </ul>
+</section>
+<section class="card" id="review">
+  <h2>Review Summary</h2>
+  <p class="tag">Findings from the 2026-09-18 review of all 15 infra modules.</p>
+
+  <h3>Status</h3>
+  <ul>
+    <li>All modules are internally consistent and cross-compatible. No content conflicts were found between modules. Modules bumped to <strong>v1.1</strong> on 2026-09-18: <code>infra_vps_docker</code>, <code>stack_vps_docker_traefik_letsencrypt</code> (gap closures 1 &amp; 2 below) and <code>auth_keycloak</code>; all other modules remain at v1.0.</li>
+    <li>Dependency declarations (<code>requires</code>) are correct: edge modules require <code>infra_runtime / vps_docker</code>; stack presets require exactly the runtime/edge/DNS-TLS modules they compose.</li>
+    <li>Naming, category values (<code>infra</code>, <code>infra_runtime</code>, <code>infra_edge</code>, <code>infra_dns_tls</code>, <code>infra_environment</code>, <code>infra_stack</code>), and priority flags (<code>required</code>/<code>optional</code>) are uniform.</li>
+  </ul>
+
+  <h3>Alignment Gaps to Close (recommended updates)</h3>
+  <div class="callout info">
+    <strong>1. Keycloak linkage — CLOSED 2026-09-18.</strong> Keycloak is the organizational identity standard: one realm per product per environment, with Google as an upstream identity provider of the product realm (per <code>~/code/infra/docs/standards.md</code> and <code>docs/keycloak-migration.md</code>). The linkage is now explicit: <code>auth_keycloak</code> (v1.1) declares <code>compatible_with</code> all infra stack presets and <code>infra_vps_docker</code>; <code>infra_vps_docker</code> (v1.1) notes Keycloak deploys as a containerized service on this infrastructure; all three stack presets reference <code>auth_keycloak</code>. Apps composing infra modules now pick up the SSO standard automatically.
+  </div>
+  <div class="callout info">
+    <strong>2. House default stack — CLOSED 2026-09-18.</strong> <code>stack_vps_docker_traefik_letsencrypt</code> (v1.1) now carries <code>org_default: true</code> in its front matter, declares compatibility with <code>auth_keycloak</code> and <code>cicd_github_actions</code>, and references the operational standard (<code>~/code/infra/docs/standards.md</code>) and Traefik templates (<code>~/code/infra/docker-templates/traefik/</code>). New applications adopt this preset unless a documented requirement selects another module.
+  </div>
+  <div class="callout">
+    <strong>3. Observability is vendor-framed but not tool-framed.</strong> Cloud modules name CloudWatch / Azure Monitor / Cloud Monitoring; VPS modules say "collect logs and metrics" without naming the org's chosen stack. Add a reference to the observability modules (<code>sdlc-library/observability/</code>) so the metrics/logging pipeline is chosen once, centrally.
+  </div>
+  <div class="callout">
+    <strong>4. Policy references are dangling for some modules.</strong> Cloud modules reference <code>policy_secrets_management</code> and <code>policy_configuration</code>; the runtime/edge modules reference "configuration policy" without a module ID. Unify on explicit <code>policies/policy_*</code> module references.
+  </div>
+  <div class="callout info">
+    <strong>No blockers.</strong> Nothing found contradicts the standards in <code>~/code/infra/docs/standards.md</code>. The factory library is a clean superset that the live infra repo already implements for VPS/Traefik workloads.
+  </div>
+</section>
+
+<section class="card" id="providers">
+  <h2>Cloud Providers</h2>
+  <p class="tag">Three modules — select exactly one per application when using a public cloud platform. All are <span class="badge req">required priority</span> <span class="badge ver">v1.0</span></p>
+  <p>All three cloud modules share the same normative core: everything is provisioned through version-controlled Infrastructure as Code, environments are isolated (accounts / subscriptions / projects), least-privilege identity, resource tagging/labeling, private networking for workloads, managed secret stores, and audit logging. The differences are the provider-specific services.</p>
+
+  <div class="module">
+    <h4>AWS</h4>
+    <p class="path"><a href="https://github.com/DVM-Software-Inc/factory_repo/blob/main/sdlc-library/infra/infra_cloud_aws.md">sdlc-library/infra/infra_cloud_aws.md</a></p>
+    <ul>
+      <li>IaC via Terraform, CloudFormation, or CDK; compute via ECS, EKS, Lambda, or EC2 (chosen by runtime modules).</li>
+      <li>Separate AWS accounts or explicit resource isolation per environment; VPC with explicit subnets, security groups, routing.</li>
+      <li>Public exposure only through load balancers or API gateways; private subnets for workloads.</li>
+      <li>Secrets via AWS Secrets Manager or Parameter Store; CloudTrail + GuardDuty for audit and threat detection.</li>
+      <li>Observability through CloudWatch or the org observability stack; blue-green or rolling deployments.</li>
+    </ul>
+    <div class="callout warn"><strong>Do not deviate:</strong> no manual provisioning outside IaC; no <code>*</code> resource grants in production IAM policies.</div>
+  </div>
+
+  <div class="module">
+    <h4>Azure</h4>
+    <p class="path"><a href="https://github.com/DVM-Software-Inc/factory_repo/blob/main/sdlc-library/infra/infra_cloud_azure.md">sdlc-library/infra/infra_cloud_azure.md</a></p>
+    <ul>
+      <li>IaC via Terraform, Bicep, or ARM templates; compute via App Service, AKS, Azure Functions, or VMs.</li>
+      <li>Separate resource groups or subscriptions per environment; VNET with explicit subnets, NSGs, routing.</li>
+      <li>Public exposure only through Application Gateway, Front Door, or load balancers.</li>
+      <li>Secrets and certificates in Azure Key Vault; Azure Monitor + Defender for Cloud for audit and threat detection.</li>
+      <li>Deployment slots, blue-green, or rolling deployments to minimize downtime.</li>
+    </ul>
+    <div class="callout warn"><strong>Do not deviate:</strong> no manual provisioning outside IaC; no subscription-level Contributor RBAC for application identities.</div>
+  </div>
+
+  <div class="module">
+    <h4>Google Cloud</h4>
+    <p class="path"><a href="https://github.com/DVM-Software-Inc/factory_repo/blob/main/sdlc-library/infra/infra_cloud_gcp.md">sdlc-library/infra/infra_cloud_gcp.md</a></p>
+    <ul>
+      <li>IaC via Terraform or Deployment Manager; compute via Cloud Run, GKE, Cloud Functions, or Compute Engine.</li>
+      <li>Separate GCP projects per environment; VPC with explicit subnets, firewall rules, routing.</li>
+      <li>Public exposure only through load balancers or API gateways.</li>
+      <li>Secrets via Secret Manager; audit logging + Security Command Center for visibility.</li>
+      <li>Observability through Cloud Monitoring and Cloud Logging or the org observability stack.</li>
+    </ul>
+    <div class="callout warn"><strong>Do not deviate:</strong> no manual provisioning outside IaC; no project-level Editor IAM bindings on service accounts in production.</div>
+  </div>
+</section>
+
+<section class="card" id="vps">
+  <h2>VPS / Docker Infrastructure</h2>
+  <p class="tag">Self-hosted model — the current operational default across DVM applications. <span class="badge req">required priority</span> <span class="badge ver">v1.0</span></p>
+
+  <div class="module">
+    <h4>VPS Docker</h4>
+    <p class="path"><a href="https://github.com/DVM-Software-Inc/factory_repo/blob/main/sdlc-library/infra/infra_vps_docker.md">sdlc-library/infra/infra_vps_docker.md</a></p>
+    <ul>
+      <li>Linux VPS hosts running containerized workloads with Docker Compose (or equivalent deterministic orchestration) and a reverse proxy for TLS termination.</li>
+      <li>Immutable images built in CI with deterministic version tags; containers run as non-root where feasible; health checks on all long-running services.</li>
+      <li>Only required public ports exposed through the reverse proxy; internal service traffic stays on isolated Docker networks.</li>
+      <li>Persistent database storage on managed volumes with documented backup procedures; environments separated by host or isolated deployment stack.</li>
+      <li>Project structure: <code>deploy/</code> for compose definitions and deployment scripts, <code>docker/</code> for Dockerfiles, <code>.github/workflows/</code> for CI/CD.</li>
+      <li>Security: key-based SSH only, hardened firewall (required ports only), secrets kept outside committed compose files.</li>
+      <li>Declared compatible with <code>backend_go</code>, <code>database_postgres</code>, <code>cicd_github_actions</code> — a strong fit for Go API services and PostgreSQL on small-to-medium production footprints.</li>
+    </ul>
+    <div class="callout warn"><strong>Do not deviate:</strong> no mutable application state in ephemeral containers without persistent storage planning; no production secrets in source-controlled compose files.</div>
+  </div>
+</section>
+
+<section class="card" id="runtimes">
+  <h2>Runtimes</h2>
+  <p class="tag">Three modules — select exactly one workload execution model per application. All are <span class="badge req">required priority</span> <span class="badge ver">v1.0</span></p>
+
+  <div class="module">
+    <h4>Kubernetes</h4>
+    <p class="path"><a href="https://github.com/DVM-Software-Inc/factory_repo/blob/main/sdlc-library/infra/runtime_kubernetes.md">sdlc-library/infra/runtime_kubernetes.md</a></p>
+    <ul>
+      <li>Cluster bootstrap, namespaces, and baseline policies defined through infrastructure code — no manual console changes.</li>
+      <li>Public traffic enters via ingress/gateway resources; network policies restrict unnecessary east-west traffic.</li>
+      <li>Workloads declare explicit resource requests/limits, readiness and liveness probes, and use the correct primitive (Deployment, StatefulSet, Job, CronJob, DaemonSet).</li>
+      <li>Configuration injected via ConfigMaps, Secrets, mounted files; apps validate required config at startup.</li>
+      <li>Persistent data on PersistentVolumeClaims or managed external services; backup strategy aligned with the storage class.</li>
+      <li>Apps log to stdout/stderr; cluster monitoring covers pod health, restart loops, resource saturation, node capacity.</li>
+    </ul>
+    <div class="callout warn"><strong>Do not deviate:</strong> no SSH-based host deployments or side-loaded processes that bypass cluster primitives.</div>
+  </div>
+
+  <div class="module">
+    <h4>Serverless</h4>
+    <p class="path"><a href="https://github.com/DVM-Software-Inc/factory_repo/blob/main/sdlc-library/infra/runtime_serverless.md">sdlc-library/infra/runtime_serverless.md</a></p>
+    <ul>
+      <li>Managed functions, API gateways, queues, and data services provisioned through infrastructure code; no direct host management.</li>
+      <li>Workloads are short-lived, stateless functions with explicit memory, timeout, and concurrency settings per function.</li>
+      <li>No local filesystem treated as durable — durable state lives in managed databases, object storage, or queues.</li>
+      <li>Configuration via provider-managed env vars / secret stores, versioned through deployment automation and validated at init.</li>
+      <li>Provider-native structured logs, metrics, traces as baseline; alerting covers invocation errors, throttling, timeouts, downstream failures.</li>
+    </ul>
+    <div class="callout warn"><strong>Do not deviate:</strong> no always-on hosts or long-lived sidecar assumptions on a serverless selection.</div>
+  </div>
+
+  <div class="module">
+    <h4>VPS Docker</h4>
+    <p class="path"><a href="https://github.com/DVM-Software-Inc/factory_repo/blob/main/sdlc-library/infra/runtime_vps_docker.md">sdlc-library/infra/runtime_vps_docker.md</a></p>
+    <ul>
+      <li>Linux VPS instances with Docker Engine, Compose tooling, firewall rules, and OS patching automation; hosts managed, but app deployment always repeatable from code.</li>
+      <li>Only the edge proxy binds public ports; app containers, databases, and workers stay on private Docker networks.</li>
+      <li>Pinned image tags, health checks, restart policies, resource limits, explicit network definitions.</li>
+      <li>Config via env vars, mounted secret files, or a controlled secrets mechanism — never hard-coded production secrets in compose files; required vars validated at container startup.</li>
+      <li>Only approved state persists through named volumes or external managed storage; volume backups are part of the runbook.</li>
+      <li>stdout/stderr as log sinks; host monitoring covers CPU, memory, disk, and container restarts.</li>
+    </ul>
+    <div class="callout warn"><strong>Do not deviate:</strong> no unmanaged host processes or parallel orchestrators bypassing container deployment standards.</div>
+  </div>
+</section>
+
+
+<section class="card" id="edge">
+  <h2>Edge Proxies</h2>
+  <p class="tag">Two modules — optional but exclusive; both require the VPS Docker runtime. <span class="badge opt">optional priority</span> <span class="badge ver">v1.0</span></p>
+  <div class="requires">requires: infra_runtime / vps_docker</div>
+
+  <div class="module">
+    <h4>Caddy</h4>
+    <p class="path"><a href="https://github.com/DVM-Software-Inc/factory_repo/blob/main/sdlc-library/infra/edge_caddy.md">sdlc-library/infra/edge_caddy.md</a></p>
+    <ul>
+      <li>Routing in version-controlled Caddy config: explicit site blocks, hostnames, redirects, upstream mappings. Path rewrites kept minimal and documented.</li>
+      <li>Caddy terminates TLS and manages HTTPS redirects; internal services stay certificate-free on private container networks.</li>
+      <li>Upstreams point to named internal services — exposure is intentional, not inferred from running containers.</li>
+      <li>Security headers, forwarding behavior, request size limits, and proxy trust settings centralized in Caddy config.</li>
+      <li>Rate limiting via approved Caddy modules or application layer for tenant-aware controls.</li>
+    </ul>
+    <div class="callout warn"><strong>Do not deviate:</strong> no parallel reverse proxy in the same ingress path.</div>
+  </div>
+
+  <div class="module">
+    <h4>Traefik</h4>
+    <p class="path"><a href="https://github.com/DVM-Software-Inc/factory_repo/blob/main/sdlc-library/infra/edge_traefik.md">sdlc-library/infra/edge_traefik.md</a></p>
+    <ul>
+      <li>Routes declared via labels or config files tied to containerized services; host/path rules explicit and version-controlled; catch-all routes fail closed.</li>
+      <li>Traefik terminates TLS at the edge; certificate config centralized, not duplicated in app containers.</li>
+      <li>Service discovery through Docker provider metadata; only approved services exposed — labels are part of the deployment contract.</li>
+      <li>Standard security headers, forwarded header handling, request size controls, HTTPS redirects at the edge; trusted proxy settings explicit.</li>
+      <li>Built-in middleware for basic rate limiting, request buffering, IP allow/deny.</li>
+    </ul>
+    <div class="callout warn"><strong>Do not deviate:</strong> no second reverse proxy in front of or beside Traefik for the same traffic path.</div>
+  </div>
+</section>
+
+<section class="card" id="dns">
+  <h2>DNS &amp; TLS</h2>
+  <p class="tag">Two modules — select exactly one certificate strategy. Both are <span class="badge req">required priority</span> <span class="badge ver">v1.0</span></p>
+
+  <div class="module">
+    <h4>Let's Encrypt</h4>
+    <p class="path"><a href="https://github.com/DVM-Software-Inc/factory_repo/blob/main/sdlc-library/infra/dns_tls_letsencrypt.md">sdlc-library/infra/dns_tls_letsencrypt.md</a></p>
+    <ul>
+      <li>Issuance and renewal automated by the edge layer or approved cert tooling; renewal monitored with alerts before expiry windows.</li>
+      <li>Public DNS carries A / AAAA / CNAME records to the edge endpoint; records stay consistent with the chosen HTTP-01 or DNS-01 challenge strategy.</li>
+      <li>Central domain management with predictable host naming (app, API, staging); wildcard certs require DNS validation and documented DNS-provider ownership.</li>
+      <li>Staging environment used for non-production issuance testing; production rate limits respected in automation and rollback.</li>
+    </ul>
+    <div class="callout warn"><strong>Do not deviate:</strong> no manual certificate uploads or unmanaged renewal workflows on the same ingress path.</div>
+  </div>
+
+  <div class="module">
+    <h4>Managed TLS</h4>
+    <p class="path"><a href="https://github.com/DVM-Software-Inc/factory_repo/blob/main/sdlc-library/infra/dns_tls_managed.md">sdlc-library/infra/dns_tls_managed.md</a></p>
+    <ul>
+      <li>Issuance, renewal, and deployment handled by the cloud/platform provider; IaC references managed certificate resources explicitly and monitors their status.</li>
+      <li>Public DNS points hostnames to the provider-managed load balancer, API gateway, CDN, or ingress; validation records maintained through the approved DNS workflow.</li>
+      <li>Domain ownership, delegation boundaries, and subdomain conventions defined so certificate attachment and cutovers stay predictable.</li>
+      <li>Separate staging and production domains with independently issued certificates; non-production never relies on production bindings or hostnames.</li>
+    </ul>
+    <div class="callout warn"><strong>Do not deviate:</strong> no manual renewal workflows layered on top of provider-managed issuance for the same endpoints.</div>
+  </div>
+</section>
+
+<section class="card" id="environments">
+  <h2>Environments</h2>
+  <p class="tag">One module — mandatory for every application. <span class="badge req">required priority</span> <span class="badge ver">v1.0</span></p>
+
+  <div class="module">
+    <h4>Dev / Stage / Prod</h4>
+    <p class="path"><a href="https://github.com/DVM-Software-Inc/factory_repo/blob/main/sdlc-library/infra/env_dev_stage_prod.md">sdlc-library/infra/env_dev_stage_prod.md</a></p>
+    <ul>
+      <li>Development, staging, and production are separate runtime environments with independent deployments, configuration, secrets, data stores, and integrations. <strong>Production data must never be written by non-production workloads.</strong></li>
+      <li>Per-environment config values, endpoints, feature flags, and scaling settings, injected and version-controlled through deployment automation — never edited manually on running systems.</li>
+      <li>Secrets stored and rotated per environment; production secrets never reused in dev/staging; access controls narrow by environment.</li>
+      <li>Promotion follows dev → stage → prod through repeatable pipelines, preferring the <strong>same build artifact</strong> across environments with only configuration changes.</li>
+      <li>Schema changes and irreversible infrastructure changes require staging validation before production rollout.</li>
+    </ul>
+  </div>
+</section>
+
+<section class="card" id="stacks">
+  <h2>Stack Presets</h2>
+  <p class="tag">Three pre-composed, dependency-checked combinations — the fastest compliant way to start a new application. <span class="badge opt">optional priority</span> <span class="badge ver">v1.0</span></p>
+
+  <div class="module">
+    <h4>VPS Docker + Traefik + Let's Encrypt <span class="badge req">house default</span></h4>
+    <p class="path"><a href="https://github.com/DVM-Software-Inc/factory_repo/blob/main/sdlc-library/infra/stack_vps_docker_traefik_letsencrypt.md">sdlc-library/infra/stack_vps_docker_traefik_letsencrypt.md</a></p>
+    <div class="requires">requires: infra_runtime / vps_docker · infra_edge / traefik · infra_dns_tls / letsencrypt</div>
+    <ul>
+      <li>Default recommendation for small-to-medium deployments needing repeatable container hosting without cluster orchestration complexity. Matches the live <code>~/code/infra</code> Traefik templates.</li>
+      <li>Requires version-controlled <code>docker-compose.yml</code> (or equivalent), edge proxy configuration/labels, environment/secret injection definitions, and deploy + rollback runbooks. Persistent services declare named volumes explicitly.</li>
+      <li>Runbooks must cover host provisioning, deploy/rollback, certificate renewal verification, log inspection, volume backups, and service recovery after host reboot; host patching and disk-capacity checks are mandatory operating tasks.</li>
+      <li>Standard env vars: <code>APP_ENV</code>, <code>APP_PORT</code>, <code>PUBLIC_BASE_URL</code>, <code>LOG_LEVEL</code>, <code>DATABASE_URL</code>, <code>REDIS_URL</code>, <code>TLS_EMAIL</code>. Production secrets never stored directly in compose files.</li>
+    </ul>
+    <div class="callout warn"><strong>Do not deviate:</strong> no second ingress proxy or unmanaged certificate workflow in this preset.</div>
+  </div>
+
+  <div class="module">
+    <h4>VPS Docker + Caddy + Let's Encrypt</h4>
+    <p class="path"><a href="https://github.com/DVM-Software-Inc/factory_repo/blob/main/sdlc-library/infra/stack_vps_docker_caddy_letsencrypt.md">sdlc-library/infra/stack_vps_docker_caddy_letsencrypt.md</a></p>
+    <div class="requires">requires: infra_runtime / vps_docker · infra_edge / caddy · infra_dns_tls / letsencrypt</div>
+    <ul>
+      <li>Default when a simpler file-driven edge configuration (<code>Caddyfile</code>) is preferred over label-driven discovery.</li>
+      <li>Requires version-controlled compose manifests, <code>Caddyfile</code> or equivalent edge config, environment/secret injection files, and runbooks for deploy, rollback, and certificate verification.</li>
+      <li>Runbooks cover host provisioning, deploy/rollback, Caddy config validation, certificate issuance verification, log inspection, and volume backups.</li>
+      <li>Same standard env var set (<code>APP_ENV</code>, <code>APP_PORT</code>, <code>PUBLIC_BASE_URL</code>, <code>LOG_LEVEL</code>, <code>DATABASE_URL</code>, <code>REDIS_URL</code>, <code>TLS_EMAIL</code>); secrets injected through approved mechanisms, not embedded in edge config.</li>
+    </ul>
+    <div class="callout warn"><strong>Do not deviate:</strong> no second ingress proxy or unmanaged certificate path in this preset.</div>
+  </div>
+
+  <div class="module">
+    <h4>Kubernetes Ingress + Managed TLS</h4>
+    <p class="path"><a href="https://github.com/DVM-Software-Inc/factory_repo/blob/main/sdlc-library/infra/stack_kubernetes_ingress_managed_tls.md">sdlc-library/infra/stack_kubernetes_ingress_managed_tls.md</a></p>
+    <div class="requires">requires: infra_runtime / kubernetes · infra_dns_tls / managed</div>
+    <ul>
+      <li>Default recommendation for multi-service or higher-scale deployments needing cluster scheduling, declarative manifests, and managed certificate lifecycle.</li>
+      <li>Requires version-controlled manifests / Helm charts for namespaces, workloads, services, ingress, secrets references, and autoscaling; operational docs for cluster access, deployment, and rollback.</li>
+      <li>Runbooks cover manifest rollout/rollback, ingress validation, certificate provisioning checks, pod health triage, scaling issues, backup/restore, plus cluster upgrade and node-pool maintenance.</li>
+      <li>Env values come from ConfigMaps, Secrets, or external secret integrations (<code>APP_ENV</code>, <code>APP_PORT</code>, <code>PUBLIC_BASE_URL</code>, <code>LOG_LEVEL</code>, <code>DATABASE_URL</code>, <code>REDIS_URL</code>, cloud secret reference keys).</li>
+    </ul>
+    <div class="callout warn"><strong>Do not deviate:</strong> no manual pod changes or unmanaged edge certificate workflows bypassing declarative cluster deployment.</div>
+  </div>
+</section>
+
+<section class="card" id="decision">
+  <h2>Decision Guide</h2>
+  <p class="tag">How to pick modules for a new application.</p>
+
+  <table>
+    <tr><th>Scenario</th><th>Recommended Selection</th></tr>
+    <tr>
+      <td>Typical DVM service or web app (small-to-medium footprint)</td>
+      <td><code>stack_vps_docker_traefik_letsencrypt</code> (house default) + <code>env_dev_stage_prod</code></td>
+    </tr>
+    <tr>
+      <td>Simple VPS app preferring file-driven edge config</td>
+      <td><code>stack_vps_docker_caddy_letsencrypt</code> + <code>env_dev_stage_prod</code></td>
+    </tr>
+    <tr>
+      <td>Multi-service or higher-scale platform on a cloud provider</td>
+      <td><code>infra_cloud_aws|azure|gcp</code> + <code>stack_kubernetes_ingress_managed_tls</code> + <code>env_dev_stage_prod</code></td>
+    </tr>
+    <tr>
+      <td>Event-driven / bursty workloads on a cloud provider</td>
+      <td><code>infra_cloud_*</code> + <code>runtime_serverless</code> + <code>dns_tls_managed</code> + <code>env_dev_stage_prod</code></td>
+    </tr>
+  </table>
+
+  <h3>Composition Rules</h3>
+  <ul>
+    <li>Exactly one runtime module per application; the selected runtime's "do-not-deviate" constraints are binding.</li>
+    <li>Edge proxies (Caddy, Traefik) only apply under the VPS Docker runtime — they declare <code>requires: infra_runtime / vps_docker</code> and are mutually exclusive on the same ingress path.</li>
+    <li>Exactly one DNS/TLS strategy: Let's Encrypt for self-managed edge, Managed TLS for cloud/provider-managed ingress.</li>
+    <li><code>env_dev_stage_prod</code> is always in force regardless of platform choice.</li>
+    <li>Prefer a stack preset over ad-hoc composition; presets carry the runbook and env-var contracts already wired together.</li>
+  </ul>
+</section>
+
+<section class="card" id="refs">
+  <h2>Cross-References</h2>
+  <p class="tag">Where these standards connect to the rest of the SDLC library and the operational infra repo.</p>
+
+  <h3>Within factory_repo</h3>
+  <ul>
+    <li>Policies referenced by cloud modules: <code>sdlc-library/policies/</code> (<code>policy_secrets_management</code>, <code>policy_configuration</code>).</li>
+    <li>Observability stack selection: <code>sdlc-library/observability/</code>.</li>
+    <li>CI/CD automation referenced by VPS modules: <code>cicd_github_actions</code> in <code>sdlc-library/cicd/</code>.</li>
+    <li>Identity provider: <code>auth_keycloak</code> in <code>sdlc-library/auth/</code> — linked from all infra stack presets and <code>infra_vps_docker</code> (see Review Summary, gap 1).</li>
+    <li>Document standards for runbooks: <code>sdlc-library/docs/standard_runbooks.md</code>.</li>
+  </ul>
+
+  <h3>Operational counterparts in ~/code/infra</h3>
+  <ul>
+    <li><code>docs/standards.md</code> — live organizational standards these modules codify.</li>
+    <li><code>docs/standards-by-app-type.html</code> — conventions per application type (sister page to this one).</li>
+    <li><code>docker-templates/traefik/</code>, <code>docker-templates/databases/</code>, <code>docker-templates/apps/</code> — the compose templates implementing the VPS Docker presets.</li>
+    <li><code>docs/environments.md</code>, <code>docs/branching.md</code>, <code>docs/versioning.md</code>, <code>docs/workflows.md</code> — environment and release process docs aligned with <code>env_dev_stage_prod</code>.</li>
+    <li><code>docs/keycloak-migration.md</code> — identity standardization effort referenced in the review gaps.</li>
+  </ul>
+</section>
+
+<footer>
+  Generated 2026-09-18 by review of <code>factory_repo/sdlc-library/infra/</code> at commit <code>main</code>.
+  Modules at v1.1: <code>auth_keycloak</code>, <code>infra_vps_docker</code>, <code>stack_vps_docker_traefik_letsencrypt</code>; all other modules at v1.0. Report issues or proposed standard changes through the factory_repo PR process.
+</footer>
+
+</div>
+</body>
+</html>

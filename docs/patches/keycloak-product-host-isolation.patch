@@ -1,0 +1,38 @@
+diff --git a/deploy/docker-compose.yml b/deploy/docker-compose.yml
+--- a/deploy/docker-compose.yml
++++ b/deploy/docker-compose.yml
+@@ -96,6 +96,8 @@ services:
+       # Add per product as realms roll (A record first, or HTTP-01 fails):
+       #
+-      # - traefik.http.routers.keycloak-<product>.rule=Host(`auth.<product>.com`)
++      # - "traefik.http.routers.keycloak-<product>.rule=Host(`auth.<product>.com`) && (Path(`/realms/<product>-<env>`) || PathPrefix(`/realms/<product>-<env>/`) || PathPrefix(`/resources/`))"
++      # The exact Path + slash-terminated PathPrefix pair prevents a realm named
++      # `<product>-<env>-other` from matching the intended realm's prefix.
+       # - traefik.http.routers.keycloak-<product>.entrypoints=websecure
+       # - traefik.http.routers.keycloak-<product>.tls.certresolver=letsencrypt
+       # - traefik.http.routers.keycloak-<product>.service=keycloak
+@@ -104,7 +106,7 @@ services:
+       # - traefik.http.routers.keycloak-<product>-http.middlewares=redirect-to-https@file
+       #
+       # --- cc_dvm (dev) — pilot realm cc-dvm-dev ---
+-      - traefik.http.routers.keycloak-ccdvm-dev.rule=Host(`auth.comcentre.online`)
++      - "traefik.http.routers.keycloak-ccdvm-dev.rule=Host(`auth.comcentre.online`) && (Path(`/realms/cc-dvm-dev`) || PathPrefix(`/realms/cc-dvm-dev/`) || PathPrefix(`/resources/`))"
+       - traefik.http.routers.keycloak-ccdvm-dev.entrypoints=websecure
+       - traefik.http.routers.keycloak-ccdvm-dev.tls.certresolver=letsencrypt
+       - traefik.http.routers.keycloak-ccdvm-dev.service=keycloak
+@@ -115,6 +117,6 @@ services:
+       # to another host's rule: a shared router serves the first host's cert to
+       # every SNI on it.
+-      - traefik.http.routers.keycloak-gelopreto-dev.rule=Host(`auth.gelopreto.com`)
++      - "traefik.http.routers.keycloak-gelopreto-dev.rule=Host(`auth.gelopreto.com`) && (Path(`/realms/gelopreto-dev`) || PathPrefix(`/realms/gelopreto-dev/`) || PathPrefix(`/resources/`))"
+       - traefik.http.routers.keycloak-gelopreto-dev.entrypoints=websecure
+       - traefik.http.routers.keycloak-gelopreto-dev.tls.certresolver=letsencrypt
+       - traefik.http.routers.keycloak-gelopreto-dev.service=keycloak
+@@ -126,6 +128,6 @@ services:
+       # for auth.enoughledger.com already resolves to the VPS; this is what makes
+       # the host serve the realm instead of Traefik's 404.
+-      - traefik.http.routers.keycloak-smbtax-dev.rule=Host(`auth.enoughledger.com`)
++      - "traefik.http.routers.keycloak-smbtax-dev.rule=Host(`auth.enoughledger.com`) && (Path(`/realms/smb-tax-dev`) || PathPrefix(`/realms/smb-tax-dev/`) || PathPrefix(`/resources/`))"
+       - traefik.http.routers.keycloak-smbtax-dev.entrypoints=websecure
+       - traefik.http.routers.keycloak-smbtax-dev.tls.certresolver=letsencrypt
+       - traefik.http.routers.keycloak-smbtax-dev.service=keycloak

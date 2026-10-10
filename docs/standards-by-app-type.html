@@ -1,0 +1,472 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DVM Software — Infra Standards by App Type</title>
+<style>
+  :root {
+    --bg: #0f1115;
+    --surface: #171a21;
+    --surface-2: #1e222b;
+    --border: #2a2f3a;
+    --text: #e6e9ef;
+    --muted: #9aa3b2;
+    --accent: #4f9cf9;
+    --accent-2: #8b5cf6;
+    --green: #34d399;
+    --amber: #fbbf24;
+    --red: #f87171;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.55;
+  }
+  .wrap { max-width: 960px; margin: 0 auto; padding: 40px 24px 80px; }
+  header h1 { font-size: 1.7rem; margin: 0 0 4px; }
+  header p.sub { color: var(--muted); margin: 0 0 8px; }
+  header p.src { color: var(--muted); font-size: 0.85rem; }
+  header p.src code { color: var(--accent); }
+
+  nav.toc {
+    display: flex; flex-wrap: wrap; gap: 8px;
+    margin: 24px 0 32px;
+  }
+  nav.toc a {
+    color: var(--text); text-decoration: none; font-size: 0.85rem;
+    background: var(--surface); border: 1px solid var(--border);
+    padding: 6px 12px; border-radius: 999px;
+  }
+  nav.toc a:hover { border-color: var(--accent); }
+
+  section.card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 24px 28px;
+    margin-bottom: 28px;
+  }
+  section.card > h2 {
+    font-size: 1.25rem; margin: 0 0 2px;
+    display: flex; align-items: center; gap: 10px;
+  }
+  section.card > p.tag { color: var(--muted); font-size: 0.85rem; margin: 0 0 16px; }
+  h3 { font-size: 0.95rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--accent); margin: 20px 0 8px; }
+  ul { margin: 8px 0; padding-left: 20px; }
+  li { margin: 4px 0; }
+  code {
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-size: 0.85em;
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 1px 5px;
+    color: #c8d3f5;
+  }
+  table { border-collapse: collapse; width: 100%; margin: 10px 0; font-size: 0.9rem; }
+  th, td { text-align: left; padding: 8px 10px; border: 1px solid var(--border); vertical-align: top; }
+  th { background: var(--surface-2); color: var(--muted); font-weight: 600; }
+
+  .badge {
+    display: inline-block; font-size: 0.7rem; font-weight: 600;
+    padding: 2px 8px; border-radius: 999px; vertical-align: middle;
+  }
+  .badge.proven { background: rgba(52,211,153,.15); color: var(--green); border: 1px solid rgba(52,211,153,.4); }
+  .badge.base { background: rgba(79,156,249,.15); color: var(--accent); border: 1px solid rgba(79,156,249,.4); }
+  .badge.cross { background: rgba(139,92,246,.15); color: var(--accent-2); border: 1px solid rgba(139,92,246,.4); }
+
+  .callout {
+    border-left: 3px solid var(--amber);
+    background: rgba(251,191,36,.07);
+    padding: 10px 14px; border-radius: 0 8px 8px 0;
+    margin: 12px 0; font-size: 0.9rem;
+  }
+  .callout.warn { border-color: var(--red); background: rgba(248,113,113,.07); }
+  .callout strong { color: var(--amber); }
+  .callout.warn strong { color: var(--red); }
+
+  .tree {
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-size: 0.8rem;
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 14px 16px;
+    overflow-x: auto;
+    color: #b6c2d9;
+    white-space: pre;
+  }
+  footer { color: var(--muted); font-size: 0.8rem; margin-top: 40px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header>
+  <h1>DVM Software — Infra Standards by App Type</h1>
+  <p class="sub">One-page summary of conventions per application type.</p>
+  <p class="src">Source of truth: <code>~/code/infra</code> — <code>docs/standards.md</code> and <code>prompts/</code> (<code>base.md</code> + one type file is the canonical LLM context). This page is a summary; when they conflict, the repo docs win.</p>
+</header>
+
+<nav class="toc">
+  <a href="#common">🌐 Common (server apps)</a>
+  <a href="#fullstack">⚡ Fullstack web</a>
+  <a href="#frontend">🎨 Frontend-only</a>
+  <a href="#backend">⚙️ Backend-only</a>
+  <a href="#ios">📱 iOS</a>
+  <a href="#ios-backend">📱⚙️ iOS + backend</a>
+  <a href="#macos">🖥️ macOS</a>
+  <a href="#messaging">✉️ Messaging (cross-cutting)</a>
+</nav>
+
+<!-- ==================== COMMON ==================== -->
+<section class="card" id="common">
+  <h2>🌐 Common — every server-deployed app <span class="badge base">base.md</span></h2>
+  <p class="tag">Applies to fullstack, frontend-only, and backend-only apps. iOS/macOS-only apps skip this unless they gain a server component.</p>
+
+  <h3>Topology</h3>
+  <ul>
+    <li><strong>One VPS</strong> (Contabo, <code>194.238.24.254</code>, <code>ssh contabo</code>) — everything is Docker Compose. No Kubernetes.</li>
+    <li><strong>Traefik v3</strong> owns 80/443, Let's Encrypt, discovers containers via labels on the external <code>web-public</code> overlay network. Never publish host ports; never bind 80/443/8080.</li>
+    <li><strong>Shared Postgres 18</strong> (<code>pgvector/pgvector:pg18</code>, container <code>app-postgres</code>): one DB + user per app+env, reached at <code>postgres:5432</code>. Not public; laptop access via SSH tunnel.</li>
+    <li>DB isolation is mandatory: <code>REVOKE CONNECT ON DATABASE … FROM PUBLIC</code> + <code>REVOKE CREATE ON SCHEMA public FROM PUBLIC</code>. One leaked <code>DATABASE_URL</code> = one database, never the instance.</li>
+    <li><strong>Secrets only in Vaultwarden</strong> (<code>vault.dvmsoftware.com</code>) → GitHub secrets via <code>bw get password … | gh secret set …</code>. Never a value in repo, chat, or logs.</li>
+  </ul>
+
+  <h3>Environments, branching, domains</h3>
+  <table>
+    <tr><th>Env</th><th>Deployed by</th><th>Deploy dir</th><th>Image tag</th><th>Hosts</th></tr>
+    <tr><td><code>dev</code></td><td>push to <code>main</code> (auto)</td><td><code>/opt/apps/&lt;slug&gt;/dev</code></td><td><code>:dev-&lt;shortsha&gt;</code></td><td><code>dev.&lt;domain&gt;</code> / <code>api.dev.&lt;domain&gt;</code></td></tr>
+    <tr><td><code>prod</code></td><td>manual <code>workflow_dispatch</code> (protected env, required reviewers)</td><td><code>/opt/apps/&lt;slug&gt;/prod</code></td><td><code>:prod-&lt;shortsha&gt;</code></td><td><code>app.&lt;domain&gt;</code> / <code>api.&lt;domain&gt;</code></td></tr>
+  </table>
+  <ul>
+    <li>No dev/prod branches — feature branches merge to <code>main</code> via PR. Each product owns its root domain (Namecheap); <code>*.dvmsoftware.com</code> is internal-only.</li>
+    <li>DNS A record → VPS must resolve <em>before</em> <code>docker compose up</code>, or Let's Encrypt HTTP-01 fails.</li>
+    <li>Monorepos are the default for products (repo named after the product); single-component repos are prefixed <code>backend-go-*</code>, <code>frontend-nextjs-*</code>, etc. Repo name = image name = deploy slug.</li>
+  </ul>
+
+  <h3>CI/CD contract</h3>
+  <ul>
+    <li>Reuse workflows from <code>DVM-Software-Inc/infra</code> (<code>build.yml</code> → <code>deploy.yml</code>) — never hand-roll scp/ssh deploys. Compose lives under <code>deploy/</code> (enforced).</li>
+    <li>Immutable GHCR images <code>ghcr.io/dvm-software-inc/&lt;repo&gt;:&lt;env&gt;-&lt;shortsha&gt;</code>; never deploy a moving tag. Migrations run via <code>migrate_command</code> (pull → migrate → <code>up -d</code>).</li>
+    <li><code>secrets: inherit</code> in callers (explicit secrets blocks resolve in caller context and break env secrets). <code>VPS_FINGERPRINT</code> must be the <strong>ECDSA</strong> host key fingerprint.</li>
+    <li><strong>CI cost policy:</strong> no workflows on PRs/feature branches — local <code>check.sh</code> gates pre-merge; auto runs only on <code>main</code> and <code>v*</code> tags; macOS runners only in release workflows; every workflow carries the standard <code>concurrency</code> block.</li>
+  </ul>
+
+  <h3>Repo hygiene (required files)</h3>
+  <ul>
+    <li><code>Dockerfile</code> per deployable service</li>
+    <li><code>deploy/docker-compose.yml</code> — unique top-level <code>name: &lt;slug&gt;-&lt;env&gt;</code> (or <code>--remove-orphans</code> deletes other apps' containers!)</li>
+    <li><code>.env.example</code> — variable names + Vaultwarden item refs, never values</li>
+    <li><code>.github/workflows/ci.yml</code> calling the reusable workflows</li>
+    <li><code>docs/overview.md</code> — hosts, services, env vars (what an agent can't infer)</li>
+  </ul>
+
+  <h3>Compose rules that bite</h3>
+  <ul>
+    <li><code>traefik.enable=true</code> + <code>traefik.docker.network=web-public</code>; <code>loadbalancer.server.port</code> = container port; router names suffixed with env (unique VPS-wide).</li>
+    <li>Backing services (redis, workers) on an app-private <code>internal</code> bridge with no Traefik labels.</li>
+    <li>Monitored apps also join the external <code>monitoring</code> overlay (cc_dvm health + metrics) — declare it in compose; don't scaffold it away.</li>
+    <li><code>restart: unless-stopped</code> (never <code>always</code>); no <code>version:</code> key; single-quote <code>$</code> in .env; <code>env_file:</code> over interpolation for secrets.</li>
+  </ul>
+
+  <h3>Authentication — Keycloak, one realm per product</h3>
+  <div class="callout warn"><strong>Rollout checkpoint · 2026-09-06:</strong> Comcentre is already provisioned. EnoughLedger Google login is owner-verified working; broader acceptance and host isolation remain open. ChatActorAI dev now authenticates through Keycloak and Google: release <code>399410a</code> succeeded, real Google login reached the existing dashboard, and logout blocks protected-page access. The approved reset cleared only 5 old identity links; all 8 users and 4 organizations remain, with one existing user rebound to Keycloak. Exact issuer/API audience, PKCE and public realm isolation pass. Full local API suite: 1,259 passed/7 skipped, plus 2 reset tests; all 50 web tests and release CI pass. Login wording follow-up <code>c9426a2</code> is deployed and healthy. Broader negative/refresh acceptance remains open. EnoughDating’s running API has empty OIDC issuer/client settings. Follow the <a href="keycloak-migration.md">migration ledger</a>; shared Authentik stays available for other apps.</div>
+  <ul>
+    <li>One realm per product per env (<code>&lt;product&gt;-dev|prod</code>). No SSO between products — that's the feature. Email is the identifier; no global usernames.</li>
+    <li>The app is an <strong>OIDC client</strong> of its realm: redirect → validate token → trust claims. It never sees a password, social login, or MFA. Registration/reset/linking belong to the realm.</li>
+    <li>Issuer is always the product's own auth host: <code>https://auth.&lt;product-domain&gt;/realms/&lt;product&gt;-&lt;env&gt;</code>. Finding <code>key.dvmsoftware.com</code> in app config = wrong.</li>
+    <li>Adding a realm = three coordinated changes: DNS A record, Traefik router (one per host), Terraform (<code>~/code/keycloak/terraform/</code>).</li>
+    <li><strong>Google social login:</strong> one owner-approved master Google account; independent Cloud projects per product <em>and environment</em>. No new account per support mailbox, no mailbox-only IAM Owner grants. Support email may be visible.</li>
+    <li>Google’s exact redirect is the Keycloak broker endpoint: <code>https://auth.&lt;domain&gt;/realms/&lt;product&gt;-&lt;env&gt;/broker/google/endpoint</code>. Google OAuth secrets and Keycloak BFF secrets are different credentials, stored separately in Vaultwarden.</li>
+    <li>Dev OAuth stays in <strong>Testing</strong>; separate production projects require public branding/policy and applicable verification. An undeployed production website does not block dev login.</li>
+    <li><strong>EnoughLedger checkpoint · 2026-09-06:</strong> Google is enabled in <code>smb-tax-dev</code>, Terraform converges, and the owner confirmed Google authentication works. Credentials remain in Vaultwarden. Product-host isolation, authorization/linking negative tests and refresh/logout remain open; working Google login is not full migration acceptance.</li>
+    <li>Acceptance includes state/nonce/S256 PKCE, exact issuer/audience, safe account linking, local tenant/role authorization and refresh/logout. Product auth hosts must deny admin, master and unrelated realms.</li>
+  </ul>
+</section>
+
+<!-- ==================== FULLSTACK ==================== -->
+<section class="card" id="fullstack">
+  <h2>⚡ Fullstack web <span class="badge proven">proven: chatactorai</span></h2>
+  <p class="tag">React/Next frontend + FastAPI backend — the default pattern for any web-UI + API product. Also follows backend.md.</p>
+
+  <h3>Repo shape — monorepo, npm workspaces</h3>
+  <div class="tree">apps/api/        # FastAPI (Python, uv; source at apps/api/src/app/)
+apps/web/        # Next.js App Router (TypeScript)
+packages/*       # shared TS packages (types, embeddable widgets…)
+deploy/docker-compose.yml
+docs/overview.md</div>
+  <p>Root <code>package.json</code>: <code>"private": true, "workspaces": ["apps/web", "packages/*"]</code>. No Turborepo unless genuinely needed.</p>
+
+  <h3>Two containers, two hosts</h3>
+  <table>
+    <tr><th>Container</th><th>Stack</th><th>Port</th><th>Prod host</th></tr>
+    <tr><td><code>web</code></td><td>Next.js</td><td>3000</td><td><code>app.&lt;domain&gt;</code></td></tr>
+    <tr><td><code>api</code></td><td>FastAPI</td><td>8000</td><td><code>api.&lt;domain&gt;</code></td></tr>
+  </table>
+  <ul>
+    <li>Both join <code>web-public</code> (unique router names <code>&lt;slug&gt;-&lt;env&gt;-web/api</code>) <em>and</em> the app-private <code>internal</code> bridge.</li>
+    <li>Redis / Celery workers / beat sit on <code>internal</code> only — no Traefik labels. Postgres is always the shared VPS instance, never a compose service.</li>
+    <li>Images suffixed <code>&lt;repo&gt;-api</code> and <code>&lt;repo&gt;-web</code>.</li>
+  </ul>
+
+  <h3>Frontend build &amp; serve</h3>
+  <ul>
+    <li>Next.js <strong>standalone</strong> output, multi-stage <code>node:20-alpine</code>, final <code>CMD ["node", "server.js"]</code>, <code>HOSTNAME=0.0.0.0 PORT=3000</code> (Traefik can't reach localhost binds).</li>
+    <li><code>NEXT_PUBLIC_*</code> baked at image build time via <code>ARG</code>s → per-environment images. Never read them at runtime.</li>
+  </ul>
+
+  <h3>Auth — BFF pattern (the standard)</h3>
+  <ul>
+    <li>Next app is an OIDC <strong>backend-for-frontend</strong> against the product's Keycloak realm — <code>openid-client</code> + <code>iron-session</code>.</li>
+    <li>Browser holds only an encrypted session cookie; tokens never reach client JS.</li>
+    <li>Route handlers <code>/auth/login|callback|logout</code> + an <code>/api/[...path]</code> proxy attaching the bearer server-side, forwarding to <code>http://api:8000</code> over <code>internal</code>.</li>
+    <li>FastAPI validates RS256 JWTs against the realm's JWKS (from <code>OIDC_ISSUER_URL</code>). Direct-to-API clients (widgets, integrations) use app-issued tokens/API keys.</li>
+    <li>Env vars: <code>OIDC_ISSUER_URL</code>, <code>OIDC_CLIENT_ID/SECRET</code>, <code>OIDC_REDIRECT_URI</code>, <code>OIDC_SCOPES</code>, <code>SESSION_SECRET</code>.</li>
+  </ul>
+
+  <h3>CI/CD deltas</h3>
+  <ul>
+    <li>Two <code>build.yml</code> calls (or a matrix) for <code>-api</code> / <code>-web</code>; the web build passes per-env <code>NEXT_PUBLIC_*</code> build args.</li>
+    <li>One <code>deploy.yml</code>; <code>migrate_command</code> runs Alembic (+ seeds) before <code>up -d</code>.</li>
+    <li>Test jobs first: ruff + pytest (postgres/redis service containers), <code>next build</code>, package builds.</li>
+  </ul>
+</section>
+
+<!-- ==================== FRONTEND ==================== -->
+<section class="card" id="frontend">
+  <h2>🎨 Frontend-only <span class="badge base">frontend.md</span></h2>
+  <p class="tag">A web UI with no backend of its own — the API it talks to is someone else's deployment (or there is none).</p>
+
+  <h3>Shape</h3>
+  <ul>
+    <li><strong>Next.js</strong> (default): standalone build per fullstack.md, container port <strong>3000</strong>.</li>
+    <li><strong>Pure static</strong> (Vite/React SPA, docs sites): multi-stage build ending in <code>nginx:alpine</code> serving <code>/usr/share/nginx/html</code>, container port <strong>80</strong>.</li>
+    <li>Single container behind Traefik at <code>app.&lt;domain&gt;</code> (or the root domain).</li>
+  </ul>
+
+  <h3>Rules</h3>
+  <ul>
+    <li>Client config (<code>NEXT_PUBLIC_*</code> / <code>VITE_*</code>) baked at build time → per-env images.</li>
+    <li><strong>Zero secrets in the container</strong> — anything in the bundle is public. If a secret seems needed, the app has a backend: switch to fullstack.</li>
+    <li>No auth in the SPA — front it with the product's Keycloak realm (forward-auth middleware, or a Next BFF). The SPA is a client of the realm; it never handles credentials.</li>
+    <li>SPA fallback for client-side routing: nginx <code>try_files … /index.html</code>.</li>
+  </ul>
+</section>
+
+<!-- ==================== BACKEND ==================== -->
+<section class="card" id="backend">
+  <h2>⚙️ Backend-only <span class="badge base">backend.md</span></h2>
+  <p class="tag">A single deployable API service behind Traefik at <code>api.&lt;domain&gt;</code> (or the root domain if no web UI). Source in <code>/src</code>.</p>
+
+  <h3>Internal ports (container-side; Traefik label must match)</h3>
+  <table>
+    <tr><th>Stack</th><th>Port</th><th>Server</th></tr>
+    <tr><td>FastAPI (Python)</td><td>8000</td><td><code>uvicorn src.app.main:app --host 0.0.0.0 --port 8000</code></td></tr>
+    <tr><td>Go</td><td>8080</td><td>net/http</td></tr>
+    <tr><td>Node/TS API</td><td>3000</td><td>—</td></tr>
+  </table>
+
+  <h3>Dockerfile conventions</h3>
+  <ul>
+    <li>Slim multi-stage: <code>python:3.12-slim</code> (uv or pip), <code>golang:1.2x</code> → distroless/alpine, <code>node:20-alpine</code>.</li>
+    <li>Bind <code>0.0.0.0</code>, <code>EXPOSE</code> the port, no secrets baked into images.</li>
+  </ul>
+
+  <h3>Required endpoints</h3>
+  <ul>
+    <li><code>GET /health</code> → 200 JSON, no auth, no DB dependency if possible.</li>
+    <li>Public API versioned under <code>/api/v1/…</code>.</li>
+  </ul>
+
+  <h3>Database &amp; migrations</h3>
+  <ul>
+    <li>Shared VPS Postgres; Alembic via the deploy workflow's <code>migrate_command</code> (<code>docker compose … run --rm api alembic upgrade head</code>).</li>
+    <li>Never <code>create_all()</code> in production paths; never migrate on container start. Local dev may use SQLite or local compose Postgres via <code>DATABASE_URL</code>.</li>
+  </ul>
+
+  <h3>Auth</h3>
+  <ul>
+    <li>Machine/service clients: bearer tokens or app-issued API keys.</li>
+    <li>Human-facing endpoints (admin UIs, dashboards): OIDC against the product's Keycloak realm; issuer is the product's auth host, never <code>key.dvmsoftware.com</code>.</li>
+  </ul>
+</section>
+
+<!-- ==================== iOS ==================== -->
+<section class="card" id="ios">
+  <h2>📱 iOS <span class="badge proven">proven: health (ItHurtsDoctor)</span></h2>
+  <p class="tag">No VPS footprint → base.md not required. messaging.md still applies if the app has user-to-business messaging.</p>
+
+  <h3>Project setup</h3>
+  <ul>
+    <li><strong>XcodeGen is the source of truth</strong>: <code>.xcodeproj</code> generated from <code>ios/&lt;AppName&gt;/project.yml</code>, never hand-edited, kept out of code review.</li>
+    <li>SwiftUI, Swift 6, iOS 17+, <code>TARGETED_DEVICE_FAMILY: "1,2"</code>.</li>
+    <li>Bundle id <code>com.&lt;product&gt;.app</code> — product-branded, not com.dvmsoftware.</li>
+    <li>Shared/reusable logic (API clients, models, sanitizers) in <strong>local SwiftPM packages</strong> beside the app (<code>ios/&lt;KitName&gt;/</code>), zero external deps unless justified, with <code>swift test</code> coverage.</li>
+  </ul>
+
+  <h3>Build configurations = environments</h3>
+  <ul>
+    <li>Three configs in <code>project.yml</code> (<code>Debug: debug</code>, <code>Staging: release</code>, <code>Release: release</code>), one xcconfig each under <code>Configs/</code>.</li>
+    <li>Env values (server URLs, flags) live in xcconfigs → <code>project.yml</code> → Info.plist → read from <code>Bundle.main</code>. Never hardcoded in Swift. In xcconfig, write URLs as <code>https:/$()/host</code> so <code>//</code> isn't a comment.</li>
+  </ul>
+
+  <h3>Persistence &amp; privacy defaults</h3>
+  <ul>
+    <li>Local-first <strong>SwiftData</strong> (<code>@Model</code> + <code>ModelContainer</code>, explicit Application Support store URL, <code>cloudKitDatabase: .none</code> unless sync is a product requirement).</li>
+    <li>No cloud storage of user data and no login by default; every <code>NS*UsageDescription</code> declared via <code>project.yml</code>.</li>
+  </ul>
+
+  <h3>CI (macos-latest, expensive)</h3>
+  <ul>
+    <li><strong><code>workflow_dispatch</code> only</strong> (plus <code>v*</code> tags once release exists) — never push/PR triggers. Pre-merge checks run locally: <code>xcodegen generate</code> + <code>swift test</code> + <code>xcodebuild test</code>.</li>
+    <li>Standard <code>concurrency</code> block; pin a simulator name with a fallback to any iPhone; coverage gathered in-scheme; tests required from day one.</li>
+  </ul>
+
+  <div class="callout"><strong>Not yet standardized — do NOT invent:</strong> code signing, TestFlight/App Store release automation (fastlane vs Xcode Cloud), widget/watch targets. Surface the decision to the operator instead of picking a tool.</div>
+</section>
+
+<!-- ==================== iOS + BACKEND ==================== -->
+<section class="card" id="ios-backend">
+  <h2>📱⚙️ iOS + backend <span class="badge proven">proven: health</span></h2>
+  <p class="tag">base.md + ios.md + backend.md apply; this defines the contract between app and backend.</p>
+
+  <h3>Repo shape — one monorepo</h3>
+  <div class="tree">ios/&lt;AppName&gt;/        # XcodeGen app project (per ios.md)
+ios/&lt;KitName&gt;/        # local SwiftPM package: APIClient + shared models
+backend_fastapi/      # FastAPI backend (backend.md; deployed per base.md)
+deploy/docker-compose.yml
+docs/overview.md</div>
+  <p>The API client never lives in the app target — it goes in the SwiftPM kit so it's unit-testable without a simulator.</p>
+
+  <h3>Environment wiring (the core contract)</h3>
+  <p>Backend base URL flows <strong>xcconfig → project.yml → Info.plist → runtime</strong>:</p>
+  <table>
+    <tr><th>Build config</th><th><code>BACKEND_BASE_URL</code></th></tr>
+    <tr><td>Debug</td><td><code>http://127.0.0.1:&lt;port&gt;</code> (local backend)</td></tr>
+    <tr><td>Staging</td><td><code>https://staging.api.&lt;domain&gt;</code> (VPS dev)</td></tr>
+    <tr><td>Release</td><td><code>https://api.&lt;domain&gt;</code> (VPS prod)</td></tr>
+  </table>
+  <ul>
+    <li>Runtime resolution: <code>Info.plist</code> → env-var override → compiled default (a small <code>AppRuntimeConfig</code>). Never scatter URL literals.</li>
+    <li>Debug localhost only via a <strong>scoped ATS exception</strong> — never disable ATS globally, never ship an exception in Release.</li>
+  </ul>
+
+  <h3>API contract</h3>
+  <ul>
+    <li>Versioned <code>/api/v1/…</code>; <code>GET /health</code> unauthenticated.</li>
+    <li>Mobile auth = app-issued tokens (or attestation-based anonymous tokens for privacy-first apps) — not session cookies. Human/admin surfaces use the Keycloak realm.</li>
+    <li><strong>Sign in with Apple becomes mandatory</strong> once any other social login ships (App Store 4.8) — and it needs a generic OIDC provider + rotating client-secret JWTs. Plan before shipping Google sign-in.</li>
+    <li>Runtime credentials from build config or Keychain — never committed. Breaking API changes → new <code>/api/v2</code> (old builds stay in the field).</li>
+  </ul>
+
+  <h3>CI</h3>
+  <ul>
+    <li>One workflow, parallel jobs: pytest (service containers), SwiftPM kit <code>swift test</code>, <code>xcodebuild test</code> on a simulator, then base.md build/deploy for the backend only.</li>
+    <li>iOS release automation: not yet standardized — ask, don't invent.</li>
+  </ul>
+</section>
+
+<!-- ==================== macOS ==================== -->
+<section class="card" id="macos">
+  <h2>🖥️ macOS <span class="badge proven">proven: talk2me</span></h2>
+  <p class="tag">No VPS footprint. Add base.md + frontend.md if the repo ships a marketing site; base.md + backend.md if it gains a server. messaging.md always applies.</p>
+
+  <h3>Repo shape — SwiftPM-first monorepo</h3>
+  <div class="tree">Package.swift            # swift-tools 5.9+, platforms .macOS(.v13)+
+Sources/&lt;Product&gt;Core/   # portable library: ALL logic lives here, unit-tested
+Sources/&lt;Product&gt;/       # thin AppKit executable (the app)
+Sources/&lt;Product&gt;Smoke/  # optional CLI for exercising providers/APIs headless
+Tests/&lt;Product&gt;CoreTests/
+ios/                     # optional companion iOS app (XcodeGen per ios.md,
+                         #   consuming the root package: packages: &lt;Core&gt;: path: ..)
+web/                     # optional marketing site → frontend.md + base.md
+scripts/                 # build-app.sh, check.sh, acceptance scripts
+docs/                    # plans, specs, status/continuation notes</div>
+  <ul>
+    <li><strong>No .xcodeproj, no XcodeGen on macOS</strong> — SwiftPM is the project system (an Xcode project is added later only for archiving/notarization).</li>
+    <li>The core/app split is load-bearing: the app target stays a shell so logic is testable with <code>swift test</code> and reusable by the iOS app and CLI.</li>
+  </ul>
+
+  <h3>App conventions</h3>
+  <ul>
+    <li>Menu-bar/background utilities are <strong>AppKit accessory apps</strong>: <code>LSUIElement=true</code> in a hand-maintained <code>Resources/Info.plist</code> copied into the bundle. SwiftUI only for windowed apps and the iOS companion.</li>
+    <li>Bundle id <code>com.&lt;product&gt;.app</code> (legacy <code>com.marcusc.*</code> / <code>com.dvmsoftware.*</code> deviations — don't copy).</li>
+    <li>Every capability gets its <code>NS*UsageDescription</code>. Runtime-only grants (Accessibility) checked at use time with graceful fallback — never hard-fail on a missing permission.</li>
+    <li>Apple frameworks (Speech, AVFoundation, Foundation Models) + plain HTTPS over bundling third-party AI/audio libraries; zero external SwiftPM deps is the default posture.</li>
+  </ul>
+
+  <h3>Config &amp; secrets</h3>
+  <ul>
+    <li>Runtime config: JSON at <code>~/Library/Application Support/&lt;Product&gt;/config.json</code> (providers, models, endpoints).</li>
+    <li><strong>Secrets only in the macOS Keychain</strong> — never in config, never in repo.</li>
+    <li>CLI/tests take <code>&lt;PRODUCT&gt;_*</code> env overrides (e.g. <code>TALK2ME_PROVIDER</code>, <code>TALK2ME_API_KEY</code>) for headless smoke tests.</li>
+  </ul>
+
+  <h3>Build, sign, verify</h3>
+  <ul>
+    <li><code>swift build -c release</code>; <code>scripts/build-app.sh</code> assembles <code>build/&lt;Product&gt;.app</code> and codesigns down a documented chain: <code>CODE_SIGN_IDENTITY</code> env → Apple Development → Developer ID Application → local dev cert → ad-hoc. <code>&lt;PRODUCT&gt;_REQUIRE_STABLE_SIGNING=1</code> forbids the ad-hoc fallback for builds that leave the machine.</li>
+    <li><code>scripts/check.sh</code> (build + swift test) is the only per-commit gate — CI never runs on pushes or PRs.</li>
+    <li>CI: <code>verify.yml</code> dispatch-only on <code>macos-latest</code> (runs check.sh, no artifacts); <code>release.yml</code> dispatch + <code>v*</code> tags; non-Xcode jobs on ubuntu-latest.</li>
+  </ul>
+
+  <div class="callout"><strong>Not yet standardized — do NOT invent:</strong> Developer ID notarization, DMG/zip packaging, Sparkle updates, App Store sandboxing/entitlements, signing team. Current state: local/dev distribution only.</div>
+</section>
+
+<!-- ==================== MESSAGING ==================== -->
+<section class="card" id="messaging">
+  <h2>✉️ Messaging — cross-cutting <span class="badge cross">messaging.md</span></h2>
+  <p class="tag">Required reading for every app type (web, iOS, macOS). Applies to authenticated user-to-business communication of any shape: chat, webmail, inquiry thread, message panel.</p>
+
+  <h3>Required architecture</h3>
+  <ul>
+    <li>Integrate through the <strong>shared DVM Messaging API</strong> and its provider-neutral client/UI packages (source: <code>~/code/chatwoot</code> repo).</li>
+    <li>Never call Chatwoot from a product backend or client — it's a replaceable engine behind the <code>ChatwootAdapter</code>. Never build an app-local messaging engine, message table, assignment queue, unread system, or polling loop.</li>
+    <li>Chatwoot IDs, inbox identifiers, API tokens, SDKs, and payloads are forbidden outside the platform's adapter/infra packages. Use platform-owned application/subject/conversation/message/context IDs.</li>
+    <li><code>~/code/chatactorai</code> is separate — the embeddable chatbot/RAG product, not the messaging system.</li>
+    <li>Peer-to-peer chat, game chat, and collaboration comments are out of scope — deliberate architecture decision required, don't force them into Chatwoot.</li>
+  </ul>
+
+  <h3>Integration contract</h3>
+  <ul>
+    <li>Each app registers once: stable application key, trusted auth/audience mapping, allowlist of messageable business-object types, per-object authorization, secure deep-link templates, owning team + escalation, notification policy + verified SES sender.</li>
+    <li>Context descriptors (e.g. <code>{type: "inquiry", id: "inq_123"}</code>) only after the platform can authorize the caller — a context ID, tenant ID, or email is never proof of access.</li>
+  </ul>
+
+  <h3>Identity &amp; network</h3>
+  <ul>
+    <li>Web: BFF pattern — the BFF calls the Messaging API with the server-held token; browser JS never holds a provider credential.</li>
+    <li>Native: app-issued/Keycloak token contract; never bundle Chatwoot or notification-provider secrets.</li>
+    <li>VPS path: product containers join the external <code>messaging-clients</code> network and call the Messaging API by private alias (never <code>chat.dvmsoftware.com</code> or Traefik). Only the Messaging API/worker + Chatwoot Rails join <code>messaging-backplane</code>.</li>
+  </ul>
+
+  <h3>Notifications &amp; config</h3>
+  <ul>
+    <li>Durable outbox + provider-neutral <code>NotificationAdapter</code>; apps never poll Chatwoot or reproduce unread counts/digests/retries. AWS SES for email; product code depends on neither provider directly.</li>
+    <li>Product config holds only provider-neutral values: <code>MESSAGING_API_URL</code>, <code>MESSAGING_APPLICATION_KEY</code>, <code>MESSAGING_ENABLED</code>. Keep integration off (<code>false</code>) until the shared service is deployed for the env — no accidental-permanent local backends.</li>
+    <li>Document a <code>Messaging</code> section in <code>docs/overview.md</code> (app key, context types, auth path, deep links, notifications).</li>
+  </ul>
+
+  <h3>Delivery gate (all 7 must pass before enabling)</h3>
+  <ol>
+    <li>Unauthenticated access fails</li>
+    <li>Cross-tenant / cross-application / guessed-context access fails</li>
+    <li>No provider IDs or credentials in browser/native client</li>
+    <li>Retries don't duplicate conversations, messages, or notifications</li>
+    <li>Operator replies arrive via verified callbacks/webhooks, not polling</li>
+    <li>Notification email uses the app's approved SES identity + deep link</li>
+    <li>Operators see the app and business context in the central queue</li>
+  </ol>
+</section>
+
+<footer>
+  Generated from <code>~/code/infra/docs/</code> + <code>~/code/infra/prompts/</code>. The markdown files remain the source of truth — update them first, then this page.
+</footer>
+
+</div>
+</body>
+</html>

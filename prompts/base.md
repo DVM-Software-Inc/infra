@@ -37,13 +37,23 @@ never call Chatwoot directly or create their own customer communication engine.
   - `*.dvmsoftware.com` is reserved for internal utilities (vault, auth, traefik, …).
 - **DNS before deploy**: create the A record → `194.238.24.254` and verify
   `dig +short <host> A` resolves before `docker compose up`, or Let's Encrypt HTTP-01 fails.
+- **Namecheap API access**: credentials are in Vaultwarden **`namecheap_api`**
+  (login username = API user, password = API key, notes = configured client IPv4).
+  `ClientIp` must match the public IPv4 of the machine making the API request and
+  that address must be whitelisted in Namecheap. A laptop's address can change;
+  the VPS/DNS target IP is not automatically its outbound client IP. Before
+  replacing an apparently invalid key, check this mismatch and the whitelist.
+  See [Namecheap API troubleshooting](../docs/namecheap-api.md) for the verified
+  recovery procedure and safe DNS updates.
 
 ## VPS layout
 
 - Apps deploy to **`/opt/apps/<slug>/<env>/`** — compose file + `.env` + volume bind-mount
   subdirectories, nothing else. (Utilities use `/opt/<name>/`; don't mix them.)
-- Persistent data = bind mounts under the deploy dir (`./data:…`), so one `tar` backs up
-  the service.
+- Persistent **app-owned service state** (caches, SQLite, generated config, queues) =
+  bind mounts under the deploy dir (`./data:…`), so one `tar` backs up the service.
+  **Customer files are not service state** — they go to object storage (see "Object
+  storage" below), never to a bind mount.
 
 ## CI/CD contract
 
@@ -140,7 +150,7 @@ services:
     restart: unless-stopped
     env_file: [.env]
     volumes:
-      - ./data:/path/inside/container   # persistent state stays under the deploy dir
+      - ./data:/path/inside/container   # app-owned state only; customer files → object storage
     networks: [web-public]
     labels:
       - traefik.enable=true
@@ -218,6 +228,60 @@ Store the password in Vaultwarden as `postgres-<slug>-<env>`. The app connects w
 `postgresql+asyncpg://…`). Default to shared Postgres; dedicated instances only for heavy
 load or compliance.
 
+## Object storage (Contabo S3)
+
+**Decided 2026-09-06.** Customer files (uploads, generated documents, exports) never live
+on a container filesystem or a bind mount: no redundancy, no lifecycle, and the
+2026-09-02 EnoughLedger cutover showed a root-owned `./data` dir silently breaking every
+upload. They go to **Contabo Object Storage** (S3-compatible, Ceph-based), the account
+that already holds the Vaultwarden offsite backups. Reference implementation:
+`smb-tax` `internal/filestore` (Go, aws-sdk-go-v2).
+
+- **Endpoint** `https://usc1.contabostorage.com` (US-central), **path-style** addressing,
+  signing region `us-east-1` (Contabo accepts it; there is no region-specific signing).
+- **One bucket per app per env**, named `dvm-<slug>-<env>` (e.g. `dvm-smb-tax-dev`).
+  The Contabo bucket namespace is shared across customers, hence the `dvm-` prefix.
+  Provision from the VPS, which already has the account remote configured:
+  `ssh contabo "rclone mkdir contabo:dvm-<slug>-<env>"`. Record the bucket in
+  `infra_llm/docs/services.md`.
+- **Only the app's API holds credentials.** No client-direct uploads, no presigned URLs
+  unless a documented need appears (then ≤5 min, one exact key, issued after the same
+  authorization as a download). No public ACLs, ever.
+- **Key layout is tenant-first** so a tenant can be listed, exported or deleted with one
+  prefix operation, and keys are **derived from the database row, never from request
+  input**:
+  `tenants/<tenant_id>/files/<file_id>/original/<sanitised-name>` and
+  `…/derived/<artefact>`. Object storage has no row-level security: isolation is the
+  app authorizing the row (under Postgres RLS where the product has it) *before* touching
+  the key. Deletion is prefix-scoped from app code; never a bucket-wide operation.
+- **Env var names** (every app, same names):
+  `OBJECT_STORE_DRIVER=s3|local`, `OBJECT_STORE_ENDPOINT`, `OBJECT_STORE_REGION`,
+  `OBJECT_STORE_BUCKET`, `OBJECT_STORE_ACCESS_KEY`, `OBJECT_STORE_SECRET_KEY`,
+  `OBJECT_STORE_PATH_STYLE=true`. `local` (filesystem) is for laptops and tests only.
+- **Boot and health:** fail to start when the bucket is unreachable (a bad key fails the
+  deploy smoke check, not the first upload); report `object_store` in `/health` from a
+  cached probe but do **not** fail the container health check on it — a provider blip
+  must not take the app down.
+- **SDK gotchas (aws-sdk-go-v2 ≥ 2025):** set request/response checksum calculation to
+  `WhenRequired` — Ceph rejects the default CRC32 request checksums and trailer-signed
+  streaming uploads. Buffer bodies you have already size-capped so they are seekable.
+- **Credentials — the honest state (decided 2026-09-06).** Contabo has **no per-bucket
+  keys**: a key pair is per Contabo user and reaches every bucket in the account. Bucket
+  restriction there is a *deny-list bucket policy per user ARN* (Contabo KB 103000282920),
+  which is default-open and must be re-applied for every new user and bucket. Owner's
+  decision: **stay on Contabo for now with one bucket per app per env and the shared
+  account key** (Vaultwarden `accounts/contabo-s3`, custom fields `Access Key` /
+  `Secret Key`), and **migrate to a provider with per-bucket access control — Cloudflare
+  R2 or similar — before prod**. Accepted interim risk, dated: one leaked app key
+  exposes every bucket, including `dvm-vault-backups`. Apps therefore must stay
+  provider-neutral: S3 driver, endpoint + region + bucket + key from env, no
+  Contabo-specific API, no public share links. Migration is then per bucket:
+  `rclone sync contabo:dvm-<slug>-<env> r2:dvm-<slug>-<env>`, new bucket-scoped key as
+  `<app>/<env>/object-store`, swap the env values, redeploy, verify, delete the old bucket.
+- Versioning off, no lifecycle rules by default; the bucket is the durable copy. Backup =
+  `rclone sync` of the bucket to a second bucket or provider; define and restore-test it
+  before the product's prod launch.
+
 ## Authentication — Keycloak, one realm per product
 
 **Decided 2026-09-02, replacing Authentik.** Reasoning:
@@ -250,6 +314,35 @@ receives and validates tokens.
 - Registration, verification, password reset and identity linking all belong to
   the realm. Do not reimplement any of them.
 
+### Token and authorization contract
+
+“The signature is valid” is only the first check. Every application declares its
+accepted token type, issuer, audience and authorization inputs:
+
+- The web BFF uses the **ID token only to complete the OIDC callback and establish
+  its server-side application session**. Validate the exact issuer, client
+  audience/authorized party, allowed algorithm, expiry/issued-at, state and the
+  nonce that was created before redirect. Require `email_verified=true` before an
+  email-based first binding or invitation match.
+- APIs accept **access tokens**, never ID tokens as bearer credentials. Validate
+  allowed algorithm, the exact product/environment issuer, an explicit API
+  audience, expiry/not-before/issued-at as applicable, and a non-empty subject.
+  A token for another product, environment, API or client must fail even when the
+  same Keycloak instance signed it.
+- Realm/client roles are authorization inputs, not the whole decision. Resolve the
+  local user, organization membership, product permission and entitlement on the
+  server; never trust a client-supplied tenant ID.
+- Give machine clients their own confidential service account, audience and
+  minimal scopes. Native human clients are public clients using the system browser
+  and authorization code + S256 PKCE; they never embed a client secret.
+- Derive discovery/JWKS from the exact issuer. Cache signing keys by issuer and
+  `kid`; on an unknown `kid`, refresh once with rate limiting so key rotation works
+  without turning arbitrary tokens into an upstream-request flood.
+
+Acceptance includes negative tests for wrong state/nonce, realm/environment,
+audience/token type, tenant/role, expiry and signing key. See
+`~/code/infra/docs/keycloak-migration.md`.
+
 ### The issuer is the PRODUCT's host — never the shared one
 
 Keycloak runs at `key.dvmsoftware.com`, but **no product ever points at it.**
@@ -269,18 +362,50 @@ That host is the admin console and the master realm. A product pointing at it
 tells its users that fourteen other products share the same infrastructure,
 which is the whole thing this architecture prevents.
 
-### Transition state — read this before assuming
+### Google social login — central administration, isolated projects
 
-As of 2026-09-03 **one realm exists** (`cc-dvm-dev`) and **Authentik still serves
-all 18 applications it served before.** Nothing has been migrated.
+Use the existing owner-approved master Google account with separate Cloud projects
+per product **and environment**. Do not create a consumer Google account for every
+product mailbox. The OAuth user support address can be visible to users; use only
+an approved eligible account/group, never a mailbox-only IAM Owner workaround.
+
+Google clients belong to Keycloak's Google provider, not the app BFF. Register the
+exact `/realms/<product>-<env>/broker/google/endpoint` on the product auth host.
+Use `openid profile email`, distinct Vaultwarden OAuth/client items, and approved
+runtime injection. Dev remains Testing; production gets separate projects and
+credentials, public policy/homepage and applicable verification. Test broker
+collision/linking; do not silently auto-link on email. See `docs/standards.md` and
+the Google rollout plan in the infra repository.
+
+### Transition state — use the ledger, never assume
+
+The migration is active. On 2026-09-06, the owner confirmed `cc_dvm` is already
+provisioned and excluded it from remaining Google work. `gelopreto` remains under
+verification. `smb-tax` has live Keycloak discovery and deployed app issuer/client
+configuration; Google login is owner-verified, while broader acceptance and host
+isolation remain open. ChatActorAI's new realm/Google provider and isolated route
+are live. Its dev app cutover `399410a` succeeded: exact Keycloak issuer/API
+audience and PKCE redirect pass; the approved five-binding reset preserved all
+8 users and 4 organizations. Real browser Google-to-dashboard login and logout
+are verified; broader live negative/refresh acceptance remains open.
+EnoughDating's running API has empty OIDC issuer/client values.
+Other applications keep their current authentication path until their individual
+cutover is verified. Use the ledger for dated evidence and unresolved gates.
 
 - **New work** follows this standard.
-- **Existing apps** stay on Authentik until their realm exists and they are cut
-  over, one product at a time.
-- Do not "fix" an app that points at Authentik. It is not drift; it has not
-  moved yet.
+- **Implementation is not acceptance.** Realm creation or a successful redirect
+  does not authorize removal of the old runtime dependency.
+- **Existing apps** move one product at a time, dev before prod. Do not make an
+  opportunistic cross-repo auth change outside the owning app session.
+- Authentik development identities are disposable by owner decision. Do not import
+  its users, credentials, sessions, consents, secrets or policies; use fresh
+  Keycloak identities and reseed affected dev bindings/fixtures.
+- Product auth hosts must deny `/admin`, `/realms/master`, and unrelated realms.
+  This shared proxy gate is still open on the observed live hosts.
 
-Migration plan and phase order: `~/code/keycloak/docs/migration-from-authentik.md`.
+Portfolio status and acceptance evidence:
+`~/code/infra/docs/keycloak-migration.md`. Realm design and implementation plan:
+`~/code/keycloak/docs/migration-from-authentik.md`.
 
 Adding a realm is three coordinated changes, not one — DNS A record for the auth
 host, a Traefik router (one per host, never an OR-rule), then Terraform. See

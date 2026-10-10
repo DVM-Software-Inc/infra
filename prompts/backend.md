@@ -23,8 +23,12 @@ use absent an explicit reason.
 ## Dockerfile conventions
 
 - Slim multi-stage builds: `python:3.12-slim` (deps via `uv` if the repo uses it, else pip),
-  `golang:1.2x` builder → distroless/alpine runner, `node:20-alpine`.
+  a currently supported Go builder matching `go.mod` (Go 1.27 for new work as of
+  2026-09) → pinned distroless/alpine runner, and Node 24 LTS for new Node services.
 - Bind `0.0.0.0`, `EXPOSE` the port from the table, no secrets baked into images.
+- Run the final image as a non-root user. Pin release image digests after the starter's
+  compatibility check; review the runtime matrix at least quarterly rather than letting
+  app generators preserve an EOL default indefinitely.
 
 ## Required endpoints
 
@@ -44,5 +48,10 @@ use absent an explicit reason.
 
 - Machine/service clients: bearer tokens or API keys issued by the app.
 - Human-facing endpoints (admin UIs, dashboards): OIDC against the product's Keycloak
-  realm — see `base.md` → Authentication. Validate tokens against the realm's JWKS;
-  the issuer is the product's auth host, never `key.dvmsoftware.com`.
+  realm — see `base.md` → Authentication. APIs accept access tokens and validate
+  allowed algorithm, exact product/environment issuer, explicit API audience,
+  expiry/not-before/issued-at as applicable, and subject against the realm's JWKS.
+  Reject ID tokens as API bearers and resolve tenant membership/permission locally.
+  The issuer is the product's auth host, never `key.dvmsoftware.com`.
+- Service accounts use their own confidential client, audience and minimum scopes;
+  app-issued API keys/tokens are scoped, hashed at rest, revocable and auditable.

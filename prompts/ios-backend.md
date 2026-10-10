@@ -38,9 +38,14 @@ Runtime resolution order in the app (a small `AppRuntimeConfig`):
 ## API contract
 
 - Versioned paths: `/api/v1/…`; `GET /health` unauthenticated.
-- Mobile clients authenticate with app-issued tokens (or attestation-based anonymous
-  tokens for privacy-first apps) — not session cookies. Human/admin surfaces use the
-  product's Keycloak realm per `base.md`.
+- Account-based mobile users authenticate against the product's Keycloak realm with a
+  **public native client**, system browser and authorization code + S256 PKCE. Never
+  embed a client secret. Store refresh/session material in Keychain, validate redirect
+  handling, and define refresh, revocation and logout behavior.
+- Privacy-first account-free apps may use app-issued/attestation-based anonymous tokens.
+  Attestation is an abuse signal, not proof of human identity. APIs validate exact
+  issuer, explicit audience, token type/time claims and local tenant permission per
+  `base.md`; native apps do not use browser session cookies.
 - **Sign in with Apple becomes mandatory** once an iOS app offers any other social
   login (App Store guideline 4.8). Keycloak does not ship an Apple provider: it needs a
   generic OIDC provider, and Apple's client secret is a signed JWT expiring within six

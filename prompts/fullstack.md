@@ -30,9 +30,11 @@ VPS instance — never a service in the deploy compose.
 
 ## Frontend build & serve
 
-- Next.js **standalone** output, multi-stage `node:20-alpine` Dockerfile, final
+- Next.js **standalone** output, multi-stage Node 24 LTS Dockerfile for new work, final
   `CMD ["node", "server.js"]`, `ENV HOSTNAME=0.0.0.0 PORT=3000` (must bind 0.0.0.0 or
   Traefik can't reach it).
+- Run the final image as the unprivileged `node` user. Validate existing apps before a
+  major runtime upgrade; do not copy Node 20, which is EOL, into new images.
 - `NEXT_PUBLIC_*` values are **baked at image build time** via `ARG`s — so images are
   per-environment. The CI build passes e.g. `NEXT_PUBLIC_API_URL=https://<api-host>` as a
   build arg; never read `NEXT_PUBLIC_*` at runtime.
@@ -48,11 +50,20 @@ never authenticates anyone itself.
 - Next route handlers implement `/auth/login|callback|logout`, plus an `/api/[...path]`
   proxy that attaches the bearer token server-side and forwards to the api container over
   the `internal` network (`http://api:8000`).
-- FastAPI validates RS256 JWTs against the **realm's** JWKS (derived from `OIDC_ISSUER_URL`). Direct-to-API clients
-  (widgets, integrations) use app-issued tokens/API keys instead of the cookie.
+- The callback validates exact issuer/client audience, allowed algorithm, state,
+  nonce, time claims and verified-email rules before creating the app session.
+- The BFF sends an **access token** to FastAPI. The API validates it against the
+  realm's JWKS with exact issuer, explicit API audience, time claims and subject,
+  then resolves tenant membership, product role and entitlement locally. It never
+  accepts an ID token as an API bearer or trusts a client-supplied tenant ID.
+- Direct-to-API clients (widgets, integrations) use scoped, hashed, revocable
+  app-issued tokens/API keys or a declared Keycloak client/audience—never the BFF
+  cookie.
 - OIDC env var names: `OIDC_ISSUER_URL`, `OIDC_CLIENT_ID`, `OIDC_CLIENT_SECRET`,
   `OIDC_REDIRECT_URI` (`https://<app-host>/auth/callback`), `OIDC_SCOPES`
-  (`openid email profile offline_access`), `SESSION_SECRET`.
+  (`openid email profile` by default), `SESSION_SECRET`.
+- Request `offline_access` only when the product has a defined background/long-lived
+  access need and corresponding revocation/storage policy; otherwise omit it.
 - **`OIDC_ISSUER_URL` is the product's own auth host**, never `key.dvmsoftware.com`:
   `https://auth.<product-domain>/realms/<product>-<env>`. Everything else — JWKS,
   authorize, token — derives from it.
