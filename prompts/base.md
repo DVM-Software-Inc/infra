@@ -60,6 +60,16 @@ never call Chatwoot directly or create their own customer communication engine.
 Repos use the reusable workflows from `DVM-Software-Inc/infra` — never hand-roll
 scp/ssh deploy jobs. Compose files live under **`deploy/`** in the repo (enforced).
 
+**Scoped release-gate pilot (2026-10-24):** AskPaje is moving to
+`deploy-gated.yml`, with a root-owned host executor, fixed Compose/config/migration
+policy and digest-only CI requests. It preserves automatic dev deployment while CI
+loses shell/SCP/Docker access. Production uses exact, expiring, single-use owner approval
+outside ordinary CI, and remains blocked while any unreviewed root-equivalent CI access
+exists. No production runtime secrets go through this workflow. Keep existing production
+guards until the app's cutover and negative tests pass; migrate other CI identities one
+app at a time. See [owner-controlled releases](../docs/owner-controlled-releases.md).
+The legacy example below is not permission to retain unrestricted root SSH for production.
+
 ```yaml
 name: CI/CD
 on:
