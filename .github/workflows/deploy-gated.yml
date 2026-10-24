@@ -1,0 +1,80 @@
+name: Scoped VPS Release
+
+on:
+  workflow_call:
+    inputs:
+      app:
+        type: string
+        required: true
+      api_digest:
+        type: string
+        required: true
+      web_digest:
+        type: string
+        required: true
+    secrets:
+      VPS_HOST:
+        required: true
+      VPS_USER:
+        required: true
+      VPS_SSH_KEY:
+        required: true
+      VPS_FINGERPRINT:
+        required: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    environment: dev
+    concurrency:
+      group: scoped-deploy-${{ inputs.app }}-dev
+      cancel-in-progress: false
+    permissions:
+      contents: read
+      actions: read
+      packages: read
+    steps:
+      - name: Submit immutable dev release to the scoped host gate
+        env:
+          RELEASE_APP: ${{ inputs.app }}
+          API_DIGEST: ${{ inputs.api_digest }}
+          WEB_DIGEST: ${{ inputs.web_digest }}
+          VPS_HOST: ${{ secrets.VPS_HOST }}
+          VPS_USER: ${{ secrets.VPS_USER }}
+          VPS_SSH_KEY: ${{ secrets.VPS_SSH_KEY }}
+          VPS_FINGERPRINT: ${{ secrets.VPS_FINGERPRINT }}
+          RELEASE_REGISTRY_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          umask 077
+          test "$GITHUB_REF" = refs/heads/main
+          [[ "$RELEASE_APP" =~ ^[a-z][a-z0-9-]{0,63}$ ]]
+          [[ "$VPS_HOST" =~ ^[A-Za-z0-9.-]+$ ]]
+          [[ "$VPS_USER" =~ ^[a-z_][a-z0-9_-]*$ ]]
+          [[ "$API_DIGEST" =~ ^sha256:[0-9a-f]{64}$ ]]
+          [[ "$WEB_DIGEST" =~ ^sha256:[0-9a-f]{64}$ ]]
+          release_tmp="$(mktemp -d)"
+          trap 'rm -rf "$release_tmp"' EXIT
+          printf '%s\n' "$VPS_SSH_KEY" > "$release_tmp/key"
+          ssh-keyscan -T 10 -t ecdsa "$VPS_HOST" > "$release_tmp/known_hosts" 2>/dev/null
+          actual="$(ssh-keygen -lf "$release_tmp/known_hosts" | awk '{print $2}' | sort -u)"
+          test "$actual" = "$VPS_FINGERPRINT"
+          python3 - "$release_tmp/request.json" <<'PY'
+          import json, os, pathlib, sys
+          app = os.environ['RELEASE_APP']
+          prefix = 'ghcr.io/' + os.environ['GITHUB_REPOSITORY_OWNER'].lower() + '/' + app
+          request = {'schema': 1, 'app': app, 'environment': 'dev',
+                     'commit': os.environ['GITHUB_SHA'], 'run_id': int(os.environ['GITHUB_RUN_ID']),
+                     'run_attempt': int(os.environ['GITHUB_RUN_ATTEMPT']),
+                     'images': {'api': prefix + '-api@' + os.environ['API_DIGEST'],
+                                'web': prefix + '-web@' + os.environ['WEB_DIGEST']}}
+          envelope = {'request': request, 'registry': {'username': os.environ['GITHUB_ACTOR'],
+                      'token': os.environ['RELEASE_REGISTRY_TOKEN']}}
+          pathlib.Path(sys.argv[1]).write_text(json.dumps(envelope))
+          PY
+          ssh -F /dev/null -i "$release_tmp/key" -o BatchMode=yes -o IdentitiesOnly=yes \
+            -o StrictHostKeyChecking=yes -o UserKnownHostsFile="$release_tmp/known_hosts" \
+            -o ClearAllForwardings=yes -o ConnectTimeout=15 -o ServerAliveInterval=30 \
+            -o ServerAliveCountMax=6 "$VPS_USER@$VPS_HOST" dvm-release-request-v1 \
+            < "$release_tmp/request.json"

@@ -1,0 +1,18 @@
+{
+  "app": "llm-gateway",
+  "environment": "dev",
+  "enabled": true,
+  "repository": "DVM-Software-Inc/llm-gateway",
+  "repository_id": 0,
+  "deploy_path": "/opt/apps/llm-gateway/dev",
+  "compose": "/etc/dvm-release/llm-gateway-dev.compose.yml",
+  "images": {
+    "api": "ghcr.io/dvm-software-inc/llm-gateway-api",
+    "web": "ghcr.io/dvm-software-inc/llm-gateway-web"
+  },
+  "services": {"api": "api", "web": "web", "migrate": "api"},
+  "users": {"api": 10001, "web": 1000, "migrate": 10001},
+  "required_jobs": ["release-policy", "test-api", "test-web", "build-api / build", "build-web / build"],
+  "migrations": [["alembic", "upgrade", "head"], ["python", "-m", "app.manage", "bootstrap-operators"]],
+  "smoke_urls": ["https://api.dev.askpaje.com/health/ready", "https://dev.askpaje.com/health"]
+}

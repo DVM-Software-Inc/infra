@@ -34,6 +34,10 @@ the stale document when a mismatch is confirmed.
   protected `prod` environment when the GitHub plan supports protection.
 - Use `.github/workflows/build.yml` and `deploy.yml`. The other legacy deployment
   workflows and `docker-templates/` are documented as deprecated.
+- Apps completing the owner-controlled gate pilot use `deploy-gated.yml` instead of
+  `deploy.yml`; see `docs/owner-controlled-releases.md`. CI submits immutable image
+  digests, never Compose, runtime secrets or commands. Keep production blocked until
+  all root-equivalent CI bypasses are removed and the exact owner approval is proven.
 - Prefer job-scoped `GITHUB_TOKEN` for GHCR. Runtime secrets originate in Vaultwarden
   and reach the deployment through protected GitHub environment secrets; values never
   belong in source or examples.
