@@ -296,6 +296,8 @@ class GateTests(unittest.TestCase):
             self.assertEqual(kwargs["environment"]["PATH"], "/usr/bin:/bin")
             if "config" in command:
                 return json.dumps(self.compose()).encode()
+            if command[0] == "/usr/bin/curl":
+                return b'{"status":"ok"}\n200'
             return b""
 
         with (
@@ -333,6 +335,54 @@ class GateTests(unittest.TestCase):
         with patch.object(gate, "ci_boundary"), patch.object(gate, "run") as runner:
             with self.assertRaises(gate.Denied):
                 gate.execute("a" * 64, manifest, self.policy, None)
+            runner.assert_not_called()
+
+    def test_readiness_tolerates_proxy_startup_race_and_still_requires_healthy_https(
+        self,
+    ):
+        with (
+            patch.object(
+                gate,
+                "run",
+                side_effect=[gate.Denied("synthetic 404"), b'{"status":"ok"}\n200'],
+            ) as runner,
+            patch.object(gate.time, "sleep") as sleep,
+        ):
+            gate.readiness(["https://api.example.test/health/ready"], "a" * 64, {})
+        self.assertEqual(runner.call_count, 2)
+        sleep.assert_called_once_with(3)
+        self.assertNotIn("--insecure", runner.call_args.args[0])
+        self.assertNotIn("--location", runner.call_args.args[0])
+
+    def test_readiness_never_accepts_redirects_unhealthy_json_or_broken_tls(self):
+        for output in [
+            b'{"status":"ok"}\n302',
+            b'{"status":"error"}\n200',
+            b"not json\n200",
+        ]:
+            with (
+                patch.object(gate, "run", return_value=output) as runner,
+                patch.object(gate.time, "sleep"),
+            ):
+                with self.assertRaises(gate.Denied):
+                    gate.readiness(
+                        ["https://api.example.test/health/ready"], "a" * 64, {}
+                    )
+                self.assertEqual(runner.call_count, 12)
+        with (
+            patch.object(
+                gate, "run", side_effect=gate.Denied("synthetic TLS refusal")
+            ) as runner,
+            patch.object(gate.time, "sleep"),
+        ):
+            with self.assertRaises(gate.Denied):
+                gate.readiness(["https://api.example.test/health/ready"], "a" * 64, {})
+            self.assertEqual(runner.call_count, 12)
+
+    def test_readiness_refuses_plaintext_or_missing_checks(self):
+        for urls in [[], ["http://api.example.test/health"]]:
+            with patch.object(gate, "run") as runner, self.assertRaises(gate.Denied):
+                gate.readiness(urls, "a" * 64, {})
             runner.assert_not_called()
 
     def test_owner_cannot_approve_without_an_interactive_terminal(self):
