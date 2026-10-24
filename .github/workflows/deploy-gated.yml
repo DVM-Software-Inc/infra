@@ -67,6 +67,21 @@ jobs:
           ssh-keyscan -T 10 -t ecdsa "$VPS_HOST" > "$release_tmp/known_hosts" 2>/dev/null
           actual="$(ssh-keygen -lf "$release_tmp/known_hosts" | awk '{print $2}' | sort -u)"
           test "$actual" = "$VPS_FINGERPRINT"
+          release_ssh=(ssh -F /dev/null -i "$release_tmp/key" -o BatchMode=yes -o IdentitiesOnly=yes
+            -o StrictHostKeyChecking=yes -o UserKnownHostsFile="$release_tmp/known_hosts"
+            -o ClearAllForwardings=yes -o ConnectTimeout=15 -o ServerAliveInterval=30
+            -o ServerAliveCountMax=6 "$VPS_USER@$VPS_HOST")
+          # Only a refusal from the actual gate counts; network failure does not.
+          for probe in id 'docker ps' internal-sftp 'owner approve'; do
+            if "${release_ssh[@]}" "$probe" < /dev/null > "$release_tmp/probe.out" 2>&1; then
+              echo "::error::CI identity unexpectedly permits an unscoped command"
+              exit 1
+            else
+              test "$?" -eq 1
+              grep -q '"state":"denied"' "$release_tmp/probe.out"
+            fi
+          done
+          echo "Scoped identity rejected shell, Docker, SFTP and owner commands"
           python3 - "$release_tmp/request.json" <<'PY'
           import json, os, pathlib, sys
           app = os.environ['RELEASE_APP']
@@ -80,8 +95,5 @@ jobs:
                       'token': os.environ['RELEASE_REGISTRY_TOKEN']}}
           pathlib.Path(sys.argv[1]).write_text(json.dumps(envelope))
           PY
-          ssh -F /dev/null -i "$release_tmp/key" -o BatchMode=yes -o IdentitiesOnly=yes \
-            -o StrictHostKeyChecking=yes -o UserKnownHostsFile="$release_tmp/known_hosts" \
-            -o ClearAllForwardings=yes -o ConnectTimeout=15 -o ServerAliveInterval=30 \
-            -o ServerAliveCountMax=6 "$VPS_USER@$VPS_HOST" dvm-release-request-v1 \
+          "${release_ssh[@]}" dvm-release-request-v1 \
             < "$release_tmp/request.json"
