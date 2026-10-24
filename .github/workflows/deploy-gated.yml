@@ -12,6 +12,9 @@ on:
       web_digest:
         type: string
         required: true
+      ci_key_fingerprint:
+        type: string
+        required: true
     secrets:
       VPS_HOST:
         required: true
@@ -40,6 +43,7 @@ jobs:
           RELEASE_APP: ${{ inputs.app }}
           API_DIGEST: ${{ inputs.api_digest }}
           WEB_DIGEST: ${{ inputs.web_digest }}
+          EXPECTED_CI_FINGERPRINT: ${{ inputs.ci_key_fingerprint }}
           VPS_HOST: ${{ secrets.VPS_HOST }}
           VPS_USER: ${{ secrets.VPS_USER }}
           VPS_SSH_KEY: ${{ secrets.VPS_SSH_KEY }}
@@ -57,6 +61,9 @@ jobs:
           release_tmp="$(mktemp -d)"
           trap 'rm -rf "$release_tmp"' EXIT
           printf '%s\n' "$VPS_SSH_KEY" > "$release_tmp/key"
+          actual_key="$(ssh-keygen -y -f "$release_tmp/key" | ssh-keygen -lf - | awk '{print $2}')"
+          test "$actual_key" = "$EXPECTED_CI_FINGERPRINT"
+          echo "Using scoped CI identity $actual_key"
           ssh-keyscan -T 10 -t ecdsa "$VPS_HOST" > "$release_tmp/known_hosts" 2>/dev/null
           actual="$(ssh-keygen -lf "$release_tmp/known_hosts" | awk '{print $2}' | sort -u)"
           test "$actual" = "$VPS_FINGERPRINT"
