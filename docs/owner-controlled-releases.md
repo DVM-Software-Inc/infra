@@ -45,6 +45,10 @@ Successful, failed and interrupted attempts are distinguishable in protected hos
 `current` and `previous` record exact manifests, not moving tags. A failed migration is
 not automatically rolled back: inspect its compatibility and repair through management.
 Rollback to an older image does not undo a database migration.
+Readiness uses bounded retries for proxy/router propagation after Compose becomes healthy.
+Every successful probe still requires verified HTTPS, HTTP 200 and JSON `status: ok`;
+redirects, unhealthy bodies and certificate errors never count as healthy. Retry audits
+record only the check index/attempt, never response bodies or credentials.
 
 ## Production approval
 

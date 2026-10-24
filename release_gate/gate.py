@@ -18,6 +18,7 @@ import stat
 import subprocess
 import sys
 import tempfile
+import time
 import urllib.error
 import urllib.request
 
@@ -532,20 +533,7 @@ def execute(
             ],
             environment=environment,
         )
-        for url in trusted["smoke_urls"]:
-            require(url.startswith("https://"), "verified HTTPS readiness required")
-            run(
-                [
-                    "/usr/bin/curl",
-                    "--fail",
-                    "--silent",
-                    "--show-error",
-                    "--max-time",
-                    "10",
-                    url,
-                ],
-                environment=environment,
-            )
+        readiness(trusted["smoke_urls"], identity, environment)
         previous = STATE / "current" / f"{request['app']}-{request['environment']}.json"
         if previous.exists():
             atomic(STATE / "previous" / previous.name, read_json(previous))
@@ -560,6 +548,45 @@ def execute(
             app=request["app"],
             environment=request["environment"],
         )
+
+
+def readiness(urls: list[str], identity: str, environment: dict) -> None:
+    require(bool(urls), "readiness checks are required")
+    for index, url in enumerate(urls):
+        require(url.startswith("https://"), "verified HTTPS readiness required")
+        for attempt in range(12):
+            try:
+                output = run(
+                    [
+                        "/usr/bin/curl",
+                        "--fail",
+                        "--silent",
+                        "--show-error",
+                        "--max-time",
+                        "10",
+                        "--write-out",
+                        "\n%{http_code}",
+                        url,
+                    ],
+                    environment=environment,
+                )
+                body, _, status_code = output.rpartition(b"\n")
+                require(status_code == b"200", "readiness must return HTTP 200")
+                require(
+                    json.loads(body).get("status") == "ok",
+                    "readiness JSON is not healthy",
+                )
+                break
+            except (Denied, ValueError, AttributeError):
+                if attempt == 11:
+                    raise Denied("readiness checks did not become healthy") from None
+                audit(
+                    "deployment.readiness_retry",
+                    identity,
+                    check_index=index,
+                    attempt=attempt + 1,
+                )
+                time.sleep(3)
 
 
 def validate_compose(rendered: dict, trusted: dict) -> None:
