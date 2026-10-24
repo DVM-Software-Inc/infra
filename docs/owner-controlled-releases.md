@@ -22,6 +22,9 @@ only `dvm-release-request-v1` and bounded JSON containing the app/environment, m
 commit, GitHub run identity and registered API/web image digests. It rejects shell/SCP/
 SFTP/Docker commands, unexpected fields, mutable tags, foreign images and production
 requests. SSH keys authenticate a registered app; request claims alone grant nothing.
+The workflow verifies the configured public CI-key fingerprint and requires live gate
+refusals for shell, Docker, SFTP and owner commands before submitting each release. An
+authentication/network error does not count as a successful denial check.
 
 The executor checks the GitHub repository's immutable ID, workflow, main commit, run
 attempt, event and successful required test/build jobs. The transient job-scoped GitHub
