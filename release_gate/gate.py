@@ -132,7 +132,7 @@ def audit(event: str, manifest_id: str, **fields: object) -> None:
         os.fsync(stream.fileno())
 
 
-def policy(app: str, environment: str) -> dict:
+def policy(app: str, environment: str, *, allow_disabled: bool = False) -> dict:
     require(
         bool(NAME.fullmatch(app)) and environment in ("dev", "prod"), "unknown target"
     )
@@ -141,7 +141,10 @@ def policy(app: str, environment: str) -> dict:
         result["app"] == app and result["environment"] == environment,
         "policy target mismatch",
     )
-    require(result.get("enabled") is True, "target is disabled by owner policy")
+    require(
+        type(result.get("enabled")) is bool, "explicit owner enablement policy required"
+    )
+    require(result["enabled"] or allow_disabled, "target is disabled by owner policy")
     require(
         result["deploy_path"] == f"/opt/apps/{app}/{environment}",
         "invalid deployment path",
@@ -611,6 +614,134 @@ def validate_compose(rendered: dict, trusted: dict) -> None:
         )
 
 
+def validate_dotenv(raw: bytes) -> None:
+    require(
+        0 < len(raw) <= MAX_INPUT and b"\0" not in raw,
+        "invalid configuration size/content",
+    )
+    keys = set()
+    for line in raw.decode("utf-8").splitlines():
+        if not line.strip() or line.lstrip().startswith("#"):
+            continue
+        match = re.fullmatch(r"([A-Z][A-Z0-9_]*)=(.*)", line)
+        require(
+            match is not None,
+            "configuration must contain single-line uppercase assignments",
+        )
+        key = match[1]
+        require(key not in keys, "duplicate configuration key")
+        require(
+            key
+            not in {
+                "TAG",
+                "IMAGE_TAG",
+                "DEPLOY_ENVIRONMENT",
+                "GIT_SHA",
+                "PATH",
+                "HOME",
+                "BASH_ENV",
+                "ENV",
+            }
+            and not key.startswith(("COMPOSE_", "DOCKER_", "LD_", "PYTHON")),
+            "host/build/deploy environment overrides are forbidden",
+        )
+        keys.add(key)
+
+
+def configure(app: str, environment: str, raw: bytes) -> dict:
+    require(
+        not os.environ.get("SSH_ORIGINAL_COMMAND"),
+        "CI cannot provision runtime configuration",
+    )
+    validate_dotenv(raw)
+    trusted = policy(app, environment, allow_disabled=True)
+    deploy = Path(trusted["deploy_path"])
+    # Initial config provision belongs to the explicit environment foundation runbook.
+    # This command rotates an existing protected config, not arbitrary host files.
+    with locked(app, environment):
+        existing = protected(deploy / ".env", secret=True)
+        fd, filename = tempfile.mkstemp(prefix=".env.pending-", dir=deploy)
+        candidate = Path(filename)
+        try:
+            with os.fdopen(fd, "wb") as stream:
+                stream.write(raw)
+                stream.flush()
+                os.fsync(stream.fileno())
+            env = {
+                "PATH": "/usr/bin:/bin",
+                "HOME": "/root",
+                "DEPLOY_ENVIRONMENT": environment,
+                "IMAGE_TAG": environment + "-config-validation",
+            }
+            rendered = json.loads(
+                run(
+                    [
+                        *DOCKER,
+                        "compose",
+                        "--project-directory",
+                        str(deploy),
+                        "--env-file",
+                        str(candidate),
+                        "-f",
+                        trusted["compose"],
+                        "--profile",
+                        "maintenance",
+                        "config",
+                        "--format",
+                        "json",
+                    ],
+                    environment=env,
+                )
+            )
+            validate_compose(rendered, trusted)
+            backup = STATE / "config-backups"
+            backup.mkdir(mode=0o700, exist_ok=True)
+            old_digest = hashlib.sha256(existing).hexdigest()
+            old_path = backup / f"{app}-{environment}-{old_digest}.env"
+            if not old_path.exists():
+                backup_fd = os.open(
+                    old_path,
+                    os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW,
+                    0o600,
+                )
+                with os.fdopen(backup_fd, "wb") as stream:
+                    stream.write(existing)
+                    stream.flush()
+                    os.fsync(stream.fileno())
+            digest = hashlib.sha256(raw).hexdigest()
+            audit(
+                "configuration.installing",
+                "",
+                app=app,
+                environment=environment,
+                config_sha256=digest,
+                previous_config_sha256=old_digest,
+            )
+            os.replace(candidate, deploy / ".env")
+            directory_fd = os.open(deploy, os.O_RDONLY | os.O_DIRECTORY)
+            try:
+                os.fsync(directory_fd)
+            finally:
+                os.close(directory_fd)
+            audit(
+                "configuration.installed",
+                "",
+                app=app,
+                environment=environment,
+                config_sha256=digest,
+                previous_config_sha256=old_digest,
+            )
+            return {
+                "state": "configured",
+                "app": app,
+                "environment": environment,
+                "config_sha256": digest,
+                "applications_restarted": False,
+            }
+        finally:
+            candidate.unlink(missing_ok=True)
+
+
 @contextlib.contextmanager
 def locked(app: str, environment: str):
     STATE.mkdir(parents=True, exist_ok=True, mode=0o700)
@@ -718,7 +849,16 @@ def main() -> int:
             len(sys.argv) >= 4,
             "expected ci APP dev or owner ACTION MANIFEST_ID [REASON]",
         )
-        if sys.argv[1] == "ci":
+        if sys.argv[1] == "configure":
+            require(len(sys.argv) == 4, "unsupported arguments")
+            require(
+                not os.environ.get("SSH_ORIGINAL_COMMAND"),
+                "CI cannot provision configuration",
+            )
+            result = configure(
+                sys.argv[2], sys.argv[3], sys.stdin.buffer.read(MAX_INPUT + 1)
+            )
+        elif sys.argv[1] == "ci":
             require(len(sys.argv) == 4, "unsupported arguments")
             result = ci(sys.argv[2], sys.argv[3])
         else:

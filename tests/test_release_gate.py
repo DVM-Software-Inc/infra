@@ -346,6 +346,117 @@ class GateTests(unittest.TestCase):
             with self.assertRaises(gate.Denied):
                 gate.owner("approve", "a" * 64, "synthetic release approval")
 
+    def test_ci_cannot_provision_runtime_secrets(self):
+        with (
+            patch.dict(
+                gate.os.environ, {"SSH_ORIGINAL_COMMAND": "dvm-release-request-v1"}
+            ),
+            patch.object(gate, "run") as runner,
+        ):
+            with self.assertRaises(gate.Denied):
+                gate.configure("llm-gateway", "dev", b"DATABASE_URL=synthetic-secret\n")
+            runner.assert_not_called()
+
+    def test_dotenv_rejects_host_compose_build_overrides_and_duplicate_keys(self):
+        gate.validate_dotenv(
+            b"# names and values stay private\nPROJECT_NAME=llm-gateway\nDATABASE_URL=synthetic-secret\n"
+        )
+        for raw in [
+            b"PROJECT_NAME=one\nPROJECT_NAME=two\n",
+            b"COMPOSE_FILE=/tmp/evil.yml\n",
+            b"DOCKER_HOST=tcp://evil\n",
+            b"IMAGE_TAG=latest\n",
+            b"DEPLOY_ENVIRONMENT=prod\n",
+            b"PATH=/tmp\n",
+            b"LD_PRELOAD=evil\n",
+            b"GIT_SHA=forged\n",
+            b"invalid assignment\n",
+        ]:
+            with self.subTest(raw=raw), self.assertRaises(gate.Denied):
+                gate.validate_dotenv(raw)
+
+    def test_config_install_validates_first_backs_up_and_never_restarts_or_logs_secrets(
+        self,
+    ):
+        deploy = self.root / "deploy"
+        deploy.mkdir()
+        (deploy / ".env").write_bytes(b"DATABASE_URL=old-synthetic-secret\n")
+        trusted = {**self.policy, "deploy_path": str(deploy)}
+        raw = b"PROJECT_NAME=llm-gateway\nDATABASE_URL=new-synthetic-secret\n"
+        commands = []
+
+        def fake_run(command, **kwargs):
+            commands.append(command)
+            return json.dumps(self.compose()).encode()
+
+        with (
+            patch.dict(gate.os.environ, {"SSH_ORIGINAL_COMMAND": ""}),
+            patch.object(gate, "policy", return_value=trusted),
+            patch.object(
+                gate, "protected", side_effect=lambda path, **kw: path.read_bytes()
+            ),
+            patch.object(gate, "run", side_effect=fake_run),
+        ):
+            result = gate.configure("llm-gateway", "dev", raw)
+        self.assertEqual((deploy / ".env").read_bytes(), raw)
+        self.assertEqual((deploy / ".env").stat().st_mode & 0o777, 0o600)
+        self.assertFalse(result["applications_restarted"])
+        self.assertEqual(len(commands), 1)
+        self.assertIn("config", commands[0])
+        self.assertNotIn("up", commands[0])
+        backups = list((gate.STATE / "config-backups").glob("*.env"))
+        self.assertEqual(
+            backups[0].read_bytes(), b"DATABASE_URL=old-synthetic-secret\n"
+        )
+        self.assertNotIn("synthetic-secret", (gate.STATE / "audit.jsonl").read_text())
+
+    def test_invalid_rendered_config_cannot_replace_existing_runtime_config(self):
+        deploy = self.root / "deploy"
+        deploy.mkdir()
+        previous = b"DATABASE_URL=preserved-synthetic-secret\n"
+        (deploy / ".env").write_bytes(previous)
+        trusted = {**self.policy, "deploy_path": str(deploy)}
+        with (
+            patch.dict(gate.os.environ, {"SSH_ORIGINAL_COMMAND": ""}),
+            patch.object(gate, "policy", return_value=trusted),
+            patch.object(
+                gate, "protected", side_effect=lambda path, **kw: path.read_bytes()
+            ),
+            patch.object(
+                gate, "run", return_value=b'{"name":"wrong-project","services":{}}'
+            ),
+        ):
+            with self.assertRaises(gate.Denied):
+                gate.configure(
+                    "llm-gateway", "dev", b"DATABASE_URL=rejected-synthetic-secret\n"
+                )
+        self.assertEqual((deploy / ".env").read_bytes(), previous)
+        self.assertFalse(list(deploy.glob(".env.pending-*")))
+
+    def test_config_audit_failure_preserves_previous_runtime_config(self):
+        deploy = self.root / "deploy"
+        deploy.mkdir()
+        previous = b"DATABASE_URL=preserved-synthetic-secret\n"
+        (deploy / ".env").write_bytes(previous)
+        trusted = {**self.policy, "deploy_path": str(deploy)}
+        with (
+            patch.dict(gate.os.environ, {"SSH_ORIGINAL_COMMAND": ""}),
+            patch.object(gate, "policy", return_value=trusted),
+            patch.object(
+                gate, "protected", side_effect=lambda path, **kw: path.read_bytes()
+            ),
+            patch.object(gate, "run", return_value=json.dumps(self.compose()).encode()),
+            patch.object(
+                gate, "audit", side_effect=OSError("synthetic audit unavailable")
+            ),
+        ):
+            with self.assertRaises(OSError):
+                gate.configure(
+                    "llm-gateway", "dev", b"DATABASE_URL=rejected-synthetic-secret\n"
+                )
+        self.assertEqual((deploy / ".env").read_bytes(), previous)
+        self.assertFalse(list(deploy.glob(".env.pending-*")))
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -108,6 +108,16 @@ must join the separately protected backup/recovery plan. Config hashes are not b
 Changing policy/Compose/runtime secrets requires an owner-controlled install/provisioning
 step; auto-deploying arbitrary infrastructure changes would recreate the original bypass.
 
+Runtime configuration rotation uses `gate.py configure APP ENV` over the verified owner
+management connection. It accepts bounded dotenv through stdin, rejects host/Compose/build
+overrides and duplicate keys, validates the protected Compose, backs up the old file and
+atomically installs mode 0600. It audits hashes only and never restarts an app. CI cannot
+invoke this operation. The next accepted release binds the new config hash. Gateway's
+`render-env-file.sh ENV --install-host` streams Vaultwarden values directly to this
+management path without a laptop file or GitHub environment secret. Provisioning the
+first config is still an explicit environment-foundation task; this command requires an
+existing protected dotenv. Other apps retain their current provisioning until migrated.
+
 ## Verification and remaining limits
 
 Run `python3 -m unittest discover -s tests -p 'test_release_gate.py' -v` locally. Tests
